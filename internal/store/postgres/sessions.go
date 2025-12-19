@@ -28,13 +28,13 @@ func (s *SessionsStore) CreateSession(ctx context.Context, userID string, expire
 		RETURNING id
 	`
 
-	var id string
-	err := s.pool.QueryRow(ctx, q, userID, expiresAt, nullIfEmpty(ip), nullIfEmpty(userAgent)).Scan(&id)
+	var idUUID pgtype.UUID
+	err := s.pool.QueryRow(ctx, q, userID, expiresAt, nullIfEmpty(ip), nullIfEmpty(userAgent)).Scan(&idUUID)
 	if err != nil {
 		return "", fmt.Errorf("create session: %w", err)
 	}
 
-	return id, nil
+	return uuidOrEmpty(idUUID), nil
 }
 
 func (s *SessionsStore) GetSession(ctx context.Context, sessionID string) (domain.Session, error) {
@@ -46,11 +46,13 @@ func (s *SessionsStore) GetSession(ctx context.Context, sessionID string) (domai
 
 	var (
 		sess      domain.Session
+		idUUID    pgtype.UUID
+		userIDUU  pgtype.UUID
 		revokedTS pgtype.Timestamptz
 	)
 	err := s.pool.QueryRow(ctx, q, sessionID).Scan(
-		&sess.ID,
-		&sess.UserID,
+		&idUUID,
+		&userIDUU,
 		&sess.CreatedAt,
 		&sess.ExpiresAt,
 		&revokedTS,
@@ -62,6 +64,8 @@ func (s *SessionsStore) GetSession(ctx context.Context, sessionID string) (domai
 		return domain.Session{}, fmt.Errorf("get session: %w", err)
 	}
 
+	sess.ID = uuidOrEmpty(idUUID)
+	sess.UserID = uuidOrEmpty(userIDUU)
 	sess.RevokedAt = timestamptzPtr(revokedTS)
 	return sess, nil
 }

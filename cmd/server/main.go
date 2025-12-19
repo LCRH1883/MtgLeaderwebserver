@@ -27,8 +27,9 @@ func main() {
 	logger := newLogger(cfg)
 
 	var (
-		authSvc *service.AuthService
-		dbPing  func(context.Context) error
+		authSvc    *service.AuthService
+		friendsSvc *service.FriendsService
+		dbPing     func(context.Context) error
 	)
 
 	if cfg.DBDSN != "" {
@@ -41,10 +42,15 @@ func main() {
 
 		users := postgres.NewUsersStore(pgPool)
 		sessions := postgres.NewSessionsStore(pgPool)
+		friendships := postgres.NewFriendshipsStore(pgPool)
 		authSvc = &service.AuthService{
 			Users:      users,
 			Sessions:   sessions,
 			SessionTTL: cfg.SessionTTL,
+		}
+		friendsSvc = &service.FriendsService{
+			Users:       users,
+			Friendships: friendships,
 		}
 		dbPing = pgPool.Ping
 	}
@@ -54,6 +60,7 @@ func main() {
 		IsProd:       cfg.IsProd(),
 		DBPing:       dbPing,
 		Auth:         authSvc,
+		Friends:      friendsSvc,
 		CookieCodec:  auth.NewCookieCodec([]byte(cfg.CookieSecret)),
 		CookieSecure: cfg.CookieSecure(),
 		SessionTTL:   cfg.SessionTTL,

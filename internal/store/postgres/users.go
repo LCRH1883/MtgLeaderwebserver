@@ -31,11 +31,12 @@ func (s *UsersStore) CreateUser(ctx context.Context, email, username, passwordHa
 
 	var (
 		u           domain.User
+		idUUID      pgtype.UUID
 		emailText   pgtype.Text
 		lastLoginTS pgtype.Timestamptz
 	)
 	err := s.pool.QueryRow(ctx, q, nullIfEmpty(email), username, passwordHash).Scan(
-		&u.ID,
+		&idUUID,
 		&emailText,
 		&u.Username,
 		&u.Status,
@@ -47,6 +48,7 @@ func (s *UsersStore) CreateUser(ctx context.Context, email, username, passwordHa
 		return domain.User{}, mapUserWriteError(err)
 	}
 
+	u.ID = uuidOrEmpty(idUUID)
 	u.Email = textOrEmpty(emailText)
 	u.LastLoginAt = timestamptzPtr(lastLoginTS)
 	return u, nil
@@ -61,11 +63,12 @@ func (s *UsersStore) GetUserByID(ctx context.Context, id string) (domain.User, e
 
 	var (
 		u           domain.User
+		idUUID      pgtype.UUID
 		emailText   pgtype.Text
 		lastLoginTS pgtype.Timestamptz
 	)
 	err := s.pool.QueryRow(ctx, q, id).Scan(
-		&u.ID,
+		&idUUID,
 		&emailText,
 		&u.Username,
 		&u.Status,
@@ -80,6 +83,7 @@ func (s *UsersStore) GetUserByID(ctx context.Context, id string) (domain.User, e
 		return domain.User{}, fmt.Errorf("get user by id: %w", err)
 	}
 
+	u.ID = uuidOrEmpty(idUUID)
 	u.Email = textOrEmpty(emailText)
 	u.LastLoginAt = timestamptzPtr(lastLoginTS)
 	return u, nil
@@ -96,11 +100,12 @@ func (s *UsersStore) GetUserByLogin(ctx context.Context, login string) (domain.U
 
 	var (
 		u           domain.UserWithPassword
+		idUUID      pgtype.UUID
 		emailText   pgtype.Text
 		lastLoginTS pgtype.Timestamptz
 	)
 	err := s.pool.QueryRow(ctx, q, login).Scan(
-		&u.ID,
+		&idUUID,
 		&emailText,
 		&u.Username,
 		&u.PasswordHash,
@@ -116,6 +121,7 @@ func (s *UsersStore) GetUserByLogin(ctx context.Context, login string) (domain.U
 		return domain.UserWithPassword{}, fmt.Errorf("get user by login: %w", err)
 	}
 
+	u.ID = uuidOrEmpty(idUUID)
 	u.Email = textOrEmpty(emailText)
 	u.LastLoginAt = timestamptzPtr(lastLoginTS)
 	return u, nil
@@ -149,24 +155,4 @@ func mapUserWriteError(err error) error {
 	return fmt.Errorf("create user: %w", err)
 }
 
-func nullIfEmpty(s string) any {
-	if s == "" {
-		return nil
-	}
-	return s
-}
-
-func textOrEmpty(t pgtype.Text) string {
-	if t.Valid {
-		return t.String
-	}
-	return ""
-}
-
-func timestamptzPtr(t pgtype.Timestamptz) *time.Time {
-	if !t.Valid {
-		return nil
-	}
-	tt := t.Time
-	return &tt
-}
+// helpers in scan.go

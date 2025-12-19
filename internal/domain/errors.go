@@ -15,6 +15,7 @@ var (
 	ErrEmailTaken         = errors.New("email_taken")
 	ErrInvalidCredentials = errors.New("invalid_credentials")
 	ErrUserDisabled       = errors.New("user_disabled")
+	ErrFriendshipExists   = errors.New("friendship_exists")
 	ErrValidation         = errors.New("validation")
 )
 

@@ -17,6 +17,7 @@ Set env vars (minimum for auth):
 
 Then:
 ```bash
+cp .env.example .env
 scripts/go test ./...
 scripts/go run ./cmd/server
 ```
@@ -27,4 +28,3 @@ scripts/go run ./cmd/server
 - `POST /v1/auth/login`
 - `POST /v1/auth/logout`
 - `GET /v1/users/me`
-
