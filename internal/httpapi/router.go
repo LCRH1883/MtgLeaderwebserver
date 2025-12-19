@@ -18,6 +18,7 @@ type RouterOpts struct {
 
 	Auth         *service.AuthService
 	Friends      *service.FriendsService
+	Matches      *service.MatchService
 	CookieCodec  auth.CookieCodec
 	CookieSecure bool
 	SessionTTL   time.Duration
@@ -35,6 +36,7 @@ func NewRouter(opts RouterOpts) http.Handler {
 		dbPing:       opts.DBPing,
 		authSvc:      opts.Auth,
 		friendsSvc:   opts.Friends,
+		matchSvc:     opts.Matches,
 		cookieCodec:  opts.CookieCodec,
 		cookieSecure: opts.CookieSecure,
 		sessionTTL:   opts.SessionTTL,
@@ -61,6 +63,13 @@ func NewRouter(opts RouterOpts) http.Handler {
 			mux.HandleFunc("POST /v1/friends/requests", api.requireAuth(api.handleFriendsCreateRequest))
 			mux.HandleFunc("POST /v1/friends/requests/{id}/accept", api.requireAuth(api.handleFriendsAccept))
 			mux.HandleFunc("POST /v1/friends/requests/{id}/decline", api.requireAuth(api.handleFriendsDecline))
+		}
+
+		if api.matchSvc != nil {
+			mux.HandleFunc("POST /v1/matches", api.requireAuth(api.handleMatchesCreate))
+			mux.HandleFunc("GET /v1/matches", api.requireAuth(api.handleMatchesList))
+			mux.HandleFunc("GET /v1/stats/summary", api.requireAuth(api.handleStatsSummary))
+			mux.HandleFunc("GET /v1/stats/head-to-head/{id}", api.requireAuth(api.handleStatsHeadToHead))
 		}
 	}
 
@@ -89,6 +98,7 @@ type api struct {
 
 	authSvc      *service.AuthService
 	friendsSvc   *service.FriendsService
+	matchSvc     *service.MatchService
 	cookieCodec  auth.CookieCodec
 	cookieSecure bool
 	sessionTTL   time.Duration

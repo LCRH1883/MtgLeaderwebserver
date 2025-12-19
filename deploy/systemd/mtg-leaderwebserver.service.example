@@ -1,0 +1,24 @@
+[Unit]
+Description=MtgLeaderwebserver
+After=network.target
+
+[Service]
+Type=simple
+User=mtg
+Group=mtg
+WorkingDirectory=/opt/mtgleaderwebserver
+EnvironmentFile=/etc/mtgleaderwebserver/mtgleaderwebserver.env
+ExecStart=/opt/mtgleaderwebserver/server
+Restart=on-failure
+RestartSec=2
+
+# Hardening (tune as needed)
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/mtgleaderwebserver
+
+[Install]
+WantedBy=multi-user.target
+

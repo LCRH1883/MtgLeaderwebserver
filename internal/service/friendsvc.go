@@ -14,6 +14,7 @@ type FriendshipsStore interface {
 	Accept(ctx context.Context, requestID, addresseeID string, when time.Time) error
 	Decline(ctx context.Context, requestID, addresseeID string, when time.Time) error
 	ListOverview(ctx context.Context, userID string) (domain.FriendsOverview, error)
+	AreFriends(ctx context.Context, userA, userB string) (bool, error)
 }
 
 type FriendsService struct {
@@ -74,4 +75,8 @@ func (s *FriendsService) Decline(ctx context.Context, addresseeID, requestID str
 		s.Now = time.Now
 	}
 	return s.Friendships.Decline(ctx, requestID, addresseeID, s.Now())
+}
+
+func (s *FriendsService) AreFriends(ctx context.Context, userA, userB string) (bool, error) {
+	return s.Friendships.AreFriends(ctx, userA, userB)
 }

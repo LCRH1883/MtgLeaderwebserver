@@ -14,6 +14,7 @@ type UsersStore interface {
 	CreateUser(ctx context.Context, email, username, passwordHash string) (domain.User, error)
 	GetUserByID(ctx context.Context, id string) (domain.User, error)
 	GetUserByLogin(ctx context.Context, login string) (domain.UserWithPassword, error)
+	GetUserByEmail(ctx context.Context, email string) (domain.UserWithPassword, error)
 	SetLastLogin(ctx context.Context, userID string, when time.Time) error
 }
 
@@ -56,14 +57,14 @@ func (s *AuthService) Register(ctx context.Context, email, username, password, i
 	return u, sessID, nil
 }
 
-func (s *AuthService) Login(ctx context.Context, login, password, ip, userAgent string) (domain.User, string, error) {
+func (s *AuthService) Login(ctx context.Context, email, password, ip, userAgent string) (domain.User, string, error) {
 	if s.Now == nil {
 		s.Now = time.Now
 	}
 
-	login = strings.TrimSpace(login)
+	email = strings.TrimSpace(strings.ToLower(email))
 
-	u, err := s.Users.GetUserByLogin(ctx, login)
+	u, err := s.Users.GetUserByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			return domain.User{}, "", domain.ErrInvalidCredentials

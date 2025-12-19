@@ -29,6 +29,7 @@ func main() {
 	var (
 		authSvc    *service.AuthService
 		friendsSvc *service.FriendsService
+		matchSvc   *service.MatchService
 		dbPing     func(context.Context) error
 	)
 
@@ -43,6 +44,7 @@ func main() {
 		users := postgres.NewUsersStore(pgPool)
 		sessions := postgres.NewSessionsStore(pgPool)
 		friendships := postgres.NewFriendshipsStore(pgPool)
+		matches := postgres.NewMatchesStore(pgPool)
 		authSvc = &service.AuthService{
 			Users:      users,
 			Sessions:   sessions,
@@ -51,6 +53,10 @@ func main() {
 		friendsSvc = &service.FriendsService{
 			Users:       users,
 			Friendships: friendships,
+		}
+		matchSvc = &service.MatchService{
+			Matches: matches,
+			Friends: friendsSvc,
 		}
 		dbPing = pgPool.Ping
 	}
@@ -61,6 +67,7 @@ func main() {
 		DBPing:       dbPing,
 		Auth:         authSvc,
 		Friends:      friendsSvc,
+		Matches:      matchSvc,
 		CookieCodec:  auth.NewCookieCodec([]byte(cfg.CookieSecret)),
 		CookieSecure: cfg.CookieSecure(),
 		SessionTTL:   cfg.SessionTTL,

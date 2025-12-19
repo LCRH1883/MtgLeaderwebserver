@@ -3,7 +3,6 @@ package httpapi
 import (
 	"errors"
 	"net/http"
-	"strings"
 	"time"
 
 	"MtgLeaderwebserver/internal/auth"
@@ -25,7 +24,10 @@ func (a *api) handleAuthRegister(w http.ResponseWriter, r *http.Request) {
 
 	fields := map[string]string{}
 	req.Username = normalizeUsername(req.Username)
-	req.Email = strings.TrimSpace(req.Email)
+	req.Email = normalizeEmail(req.Email)
+	if !validEmail(req.Email) {
+		fields["email"] = "must be a valid email"
+	}
 	if req.Username == "" || !validUsername(req.Username) {
 		fields["username"] = "must be 3-24 chars [A-Za-z0-9_]"
 	}
@@ -53,7 +55,7 @@ func (a *api) handleAuthRegister(w http.ResponseWriter, r *http.Request) {
 }
 
 type loginRequest struct {
-	Login    string `json:"login"`
+	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
@@ -64,21 +66,21 @@ func (a *api) handleAuthLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req.Login = strings.TrimSpace(req.Login)
-	if req.Login == "" || req.Password == "" {
-		WriteDomainError(w, domain.NewValidationError(map[string]string{"login": "required", "password": "required"}))
+	req.Email = normalizeEmail(req.Email)
+	if !validEmail(req.Email) || req.Password == "" {
+		WriteDomainError(w, domain.NewValidationError(map[string]string{"email": "required", "password": "required"}))
 		return
 	}
 
 	now := time.Now()
 	ip := clientIP(r)
-	if !a.loginLimiter.Allow("ip:"+ip, now) || !a.loginLimiter.Allow("login:"+strings.ToLower(req.Login), now) {
+	if !a.loginLimiter.Allow("ip:"+ip, now) || !a.loginLimiter.Allow("email:"+req.Email, now) {
 		WriteError(w, http.StatusTooManyRequests, "rate_limited", "too many attempts")
 		return
 	}
 
 	userAgent := r.UserAgent()
-	u, sessID, err := a.authSvc.Login(r.Context(), req.Login, req.Password, ip, userAgent)
+	u, sessID, err := a.authSvc.Login(r.Context(), req.Email, req.Password, ip, userAgent)
 	if err != nil {
 		if errors.Is(err, domain.ErrInvalidCredentials) {
 			WriteDomainError(w, err)

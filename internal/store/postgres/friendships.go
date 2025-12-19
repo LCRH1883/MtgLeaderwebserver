@@ -203,4 +203,27 @@ func (s *FriendshipsStore) listOutgoing(ctx context.Context, userID string) ([]d
 	return out, nil
 }
 
+func (s *FriendshipsStore) AreFriends(ctx context.Context, userA, userB string) (bool, error) {
+	const q = `
+		SELECT 1
+		FROM friendships
+		WHERE status = 'accepted'
+		  AND (
+		    (requester_id = $1 AND addressee_id = $2)
+		    OR
+		    (requester_id = $2 AND addressee_id = $1)
+		  )
+		LIMIT 1
+	`
+	var one int
+	err := s.pool.QueryRow(ctx, q, userA, userB).Scan(&one)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, nil
+		}
+		return false, fmt.Errorf("are friends: %w", err)
+	}
+	return true, nil
+}
+
 var _ = pgx.ErrNoRows

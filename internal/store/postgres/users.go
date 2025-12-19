@@ -127,6 +127,43 @@ func (s *UsersStore) GetUserByLogin(ctx context.Context, login string) (domain.U
 	return u, nil
 }
 
+func (s *UsersStore) GetUserByEmail(ctx context.Context, email string) (domain.UserWithPassword, error) {
+	const q = `
+		SELECT id, email, username, password_hash, status, created_at, updated_at, last_login_at
+		FROM users
+		WHERE email = $1
+		LIMIT 1
+	`
+
+	var (
+		u           domain.UserWithPassword
+		idUUID      pgtype.UUID
+		emailText   pgtype.Text
+		lastLoginTS pgtype.Timestamptz
+	)
+	err := s.pool.QueryRow(ctx, q, email).Scan(
+		&idUUID,
+		&emailText,
+		&u.Username,
+		&u.PasswordHash,
+		&u.Status,
+		&u.CreatedAt,
+		&u.UpdatedAt,
+		&lastLoginTS,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.UserWithPassword{}, domain.ErrNotFound
+		}
+		return domain.UserWithPassword{}, fmt.Errorf("get user by email: %w", err)
+	}
+
+	u.ID = uuidOrEmpty(idUUID)
+	u.Email = textOrEmpty(emailText)
+	u.LastLoginAt = timestamptzPtr(lastLoginTS)
+	return u, nil
+}
+
 func (s *UsersStore) SetLastLogin(ctx context.Context, userID string, when time.Time) error {
 	const q = `
 		UPDATE users

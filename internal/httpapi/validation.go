@@ -1,6 +1,9 @@
 package httpapi
 
-import "strings"
+import (
+	"net/mail"
+	"strings"
+)
 
 func normalizeUsername(s string) string {
 	return strings.TrimSpace(s)
@@ -21,4 +24,17 @@ func validUsername(s string) bool {
 		}
 	}
 	return true
+}
+
+func normalizeEmail(s string) string {
+	return strings.TrimSpace(strings.ToLower(s))
+}
+
+func validEmail(s string) bool {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return false
+	}
+	_, err := mail.ParseAddress(s)
+	return err == nil
 }
