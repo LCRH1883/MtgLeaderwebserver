@@ -8,5 +8,8 @@
 /dist/
 /build/
 /.tooling/
+/.pgdata/
+
+cookies.txt
 
 *.log

@@ -32,6 +32,7 @@ scripts/go run ./cmd/server
 - `POST /v1/auth/login` (email + password)
 - `POST /v1/auth/logout`
 - `GET /v1/users/me`
+- `GET /v1/users/search?q=...`
 - `GET /v1/friends`
 - `POST /v1/friends/requests`
 - `POST /v1/friends/requests/{id}/accept`
