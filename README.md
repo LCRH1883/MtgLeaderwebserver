@@ -8,6 +8,8 @@ Go backend for an MTG app (auth → friends → matches → stats).
 - Go (see `scripts/go` for the repo-local toolchain wrapper)
 - Postgres
 - SQL migrations are `goose`-compatible (`migrations/`) and runnable via `scripts/migrate`
+  - Optional admin UI: set `APP_ADMIN_EMAILS` (comma-separated allowlist)
+  - Optional admin bootstrap user: set `APP_ADMIN_BOOTSTRAP_EMAIL` + `APP_ADMIN_BOOTSTRAP_PASSWORD`
 
 ### Run
 Set env vars (minimum for auth):
@@ -41,6 +43,9 @@ scripts/go run ./cmd/server
 - `GET /v1/matches`
 - `GET /v1/stats/summary`
 - `GET /v1/stats/head-to-head/{id}`
+- Admin UI (only when `APP_ADMIN_EMAILS` is set):
+  - `GET /admin/`
+  - `GET /admin/users`
 
 ### Example curl flow
 ```bash

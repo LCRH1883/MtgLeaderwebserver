@@ -1,0 +1,29 @@
+{{define "layout"}}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>{{.Title}}</title>
+    <link rel="stylesheet" href="/admin/static/admin.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="container">
+        <div class="brand">MTG Admin</div>
+        <nav class="nav">
+          <a href="/admin/">Dashboard</a>
+          <a href="/admin/users">Users</a>
+          <form method="post" action="/admin/logout" class="inline">
+            <button type="submit" class="linkish">Logout</button>
+          </form>
+        </nav>
+      </div>
+    </header>
+    <main class="container">
+      {{template "content" .}}
+    </main>
+  </body>
+</html>
+{{end}}
+

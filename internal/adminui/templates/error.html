@@ -1,0 +1,19 @@
+{{define "error.html"}}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>{{.Title}}</title>
+    <link rel="stylesheet" href="/admin/static/admin.css" />
+  </head>
+  <body>
+    <main class="container auth">
+      <h1>{{.Title}}</h1>
+      <div class="alert">{{.Error}}</div>
+      <a href="/admin/">Back</a>
+    </main>
+  </body>
+</html>
+{{end}}
+

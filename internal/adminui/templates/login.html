@@ -1,0 +1,29 @@
+{{define "login.html"}}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>{{.Title}}</title>
+    <link rel="stylesheet" href="/admin/static/admin.css" />
+  </head>
+  <body>
+    <main class="container auth">
+      <h1>Admin Login</h1>
+      {{if .Error}}<div class="alert">{{.Error}}</div>{{end}}
+      <form method="post" action="/admin/login" class="card">
+        <label>
+          <div class="label">Email</div>
+          <input name="email" type="email" autocomplete="email" required />
+        </label>
+        <label>
+          <div class="label">Password</div>
+          <input name="password" type="password" autocomplete="current-password" required />
+        </label>
+        <button type="submit">Sign in</button>
+      </form>
+    </main>
+  </body>
+</html>
+{{end}}
+
