@@ -1,0 +1,36 @@
+{{define "layout"}}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>{{.Title}}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/app/static/app.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="container topbar-inner">
+        <div class="brand">
+          <span class="brand-mark">MTG</span>
+          <div>
+            <div class="brand-title">Friends</div>
+            <div class="brand-sub">Find and connect with players</div>
+          </div>
+        </div>
+        <div class="nav">
+          <div class="nav-user">Signed in as <span>@{{.User.Username}}</span></div>
+          <form method="post" action="/app/logout">
+            <button class="ghost" type="submit">Logout</button>
+          </form>
+        </div>
+      </div>
+    </header>
+    <main class="container">
+      {{template "content" .}}
+    </main>
+  </body>
+</html>
+{{end}}

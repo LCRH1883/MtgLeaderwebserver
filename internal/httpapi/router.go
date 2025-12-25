@@ -72,6 +72,7 @@ func NewRouter(opts RouterOpts) http.Handler {
 			mux.HandleFunc("POST /v1/friends/requests", api.requireAuth(api.handleFriendsCreateRequest))
 			mux.HandleFunc("POST /v1/friends/requests/{id}/accept", api.requireAuth(api.handleFriendsAccept))
 			mux.HandleFunc("POST /v1/friends/requests/{id}/decline", api.requireAuth(api.handleFriendsDecline))
+			mux.HandleFunc("POST /v1/friends/requests/{id}/cancel", api.requireAuth(api.handleFriendsCancel))
 		}
 
 		if api.matchSvc != nil {

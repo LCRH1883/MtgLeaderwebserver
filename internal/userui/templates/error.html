@@ -1,0 +1,26 @@
+{{define "error.html"}}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>{{.Title}}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/app/static/app.css" />
+  </head>
+  <body class="auth-page">
+    <main class="container auth">
+      <div class="auth-card stack">
+        <div>
+          <p class="eyebrow">Oops</p>
+          <h1>{{.Title}}</h1>
+          <p class="lead">{{.Error}}</p>
+        </div>
+        <a class="pill-link" href="/app/">Back to friends</a>
+      </div>
+    </main>
+  </body>
+</html>
+{{end}}

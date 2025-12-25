@@ -1,0 +1,40 @@
+{{define "register.html"}}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>{{.Title}}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/app/static/app.css" />
+  </head>
+  <body class="auth-page">
+    <main class="container auth">
+      <div class="auth-card stack">
+        <div>
+          <p class="eyebrow">Create account</p>
+          <h1>Join MTG Friends.</h1>
+          <p class="lead">Pick a username so other players can find you.</p>
+        </div>
+        {{if .Error}}
+          <div class="alert">{{.Error}}</div>
+        {{end}}
+        <form method="post" action="/app/register" class="stack">
+          <label class="label" for="email">Email</label>
+          <input id="email" name="email" type="email" autocomplete="email" required value="{{.Email}}" />
+          <label class="label" for="username">Username</label>
+          <input id="username" name="username" type="text" autocomplete="username" required value="{{.Username}}" />
+          <div class="hint">3-24 characters, letters, numbers, underscore.</div>
+          <label class="label" for="password">Password</label>
+          <input id="password" name="password" type="password" autocomplete="new-password" required />
+          <div class="hint">Minimum 12 characters.</div>
+          <button type="submit">Create account</button>
+        </form>
+        <div class="muted small">Already have an account? <a class="inline-link" href="/app/login">Sign in</a>.</div>
+      </div>
+    </main>
+  </body>
+</html>
+{{end}}

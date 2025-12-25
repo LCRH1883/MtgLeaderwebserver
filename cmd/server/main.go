@@ -19,6 +19,7 @@ import (
 	"MtgLeaderwebserver/internal/httpapi"
 	"MtgLeaderwebserver/internal/service"
 	"MtgLeaderwebserver/internal/store/postgres"
+	"MtgLeaderwebserver/internal/userui"
 )
 
 func main() {
@@ -117,6 +118,29 @@ func main() {
 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 			w.WriteHeader(http.StatusNotFound)
 			_, _ = w.Write([]byte("admin ui disabled: set APP_DB_DSN and APP_ADMIN_EMAILS (and restart the server)\n"))
+		})
+	}
+
+	if authSvc != nil && friendsSvc != nil && usersSvc != nil {
+		userRouter := userui.New(userui.Opts{
+			Logger:       logger,
+			Auth:         authSvc,
+			Friends:      friendsSvc,
+			Users:        usersSvc,
+			CookieCodec:  auth.NewCookieCodec([]byte(cfg.CookieSecret)),
+			CookieSecure: cfg.CookieSecure(),
+			SessionTTL:   cfg.SessionTTL,
+		})
+		root.Handle("/app", userRouter)
+		root.Handle("/app/", userRouter)
+	} else {
+		root.HandleFunc("/app", func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "/app/", http.StatusFound)
+		})
+		root.HandleFunc("/app/", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte("user ui disabled: set APP_DB_DSN (and restart the server)\n"))
 		})
 	}
 
