@@ -13,15 +13,15 @@ import (
 type stubUsersStore struct {
 	t *testing.T
 
-	createUserFunc              func(context.Context, string, string, string) (domain.User, error)
-	getUserByIDFunc             func(context.Context, string) (domain.User, error)
-	getUserByLoginFunc          func(context.Context, string) (domain.UserWithPassword, error)
-	getUserByEmailFunc          func(context.Context, string) (domain.UserWithPassword, error)
-	getUserByExternalFunc       func(context.Context, string, string) (domain.User, domain.ExternalAccount, error)
-	createUserWithExternalFunc  func(context.Context, string, string, string, string, string) (domain.User, domain.ExternalAccount, error)
-	linkExternalAccountFunc     func(context.Context, string, string, string, string) (domain.ExternalAccount, error)
-	setLastLoginFunc            func(context.Context, string, time.Time) error
-	setPasswordHashFunc         func(context.Context, string, string) error
+	createUserFunc             func(context.Context, string, string, string) (domain.User, error)
+	getUserByIDFunc            func(context.Context, string) (domain.User, error)
+	getUserByLoginFunc         func(context.Context, string) (domain.UserWithPassword, error)
+	getUserByEmailFunc         func(context.Context, string) (domain.UserWithPassword, error)
+	getUserByExternalFunc      func(context.Context, string, string) (domain.User, domain.ExternalAccount, error)
+	createUserWithExternalFunc func(context.Context, string, string, string, string, string) (domain.User, domain.ExternalAccount, error)
+	linkExternalAccountFunc    func(context.Context, string, string, string, string) (domain.ExternalAccount, error)
+	setLastLoginFunc           func(context.Context, string, time.Time) error
+	setPasswordHashFunc        func(context.Context, string, string) error
 }
 
 func (s *stubUsersStore) CreateUser(ctx context.Context, email, username, passwordHash string) (domain.User, error) {

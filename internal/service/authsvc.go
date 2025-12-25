@@ -38,8 +38,8 @@ type AuthService struct {
 	SessionTTL time.Duration
 	Now        func() time.Time
 
-	GoogleWebClientID  string
-	AppleServiceID     string
+	GoogleWebClientID   string
+	AppleServiceID      string
 	VerifyGoogleIDToken func(context.Context, string, string) (*auth.ExternalTokenClaims, error)
 	VerifyAppleIDToken  func(context.Context, string, string) (*auth.ExternalTokenClaims, error)
 }

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/HendrickPhan/go-verify-apple-id-token/appleid"
+	"github.com/HendrickPhan/go-verify-apple-id-token/validator"
 	"google.golang.org/api/idtoken"
 )
 
@@ -32,10 +32,17 @@ func VerifyGoogleIDToken(ctx context.Context, tokenString, expectedAud string) (
 		return nil, fmt.Errorf("unexpected issuer: %s", payload.Issuer)
 	}
 
+	email := ""
+	if raw, ok := payload.Claims["email"]; ok {
+		if v, ok := raw.(string); ok {
+			email = v
+		}
+	}
+
 	return &ExternalTokenClaims{
 		Issuer:  payload.Issuer,
 		Subject: payload.Subject,
-		Email:   strings.TrimSpace(strings.ToLower(payload.Email)),
+		Email:   strings.TrimSpace(strings.ToLower(email)),
 	}, nil
 }
 
@@ -47,23 +54,19 @@ func VerifyAppleIDToken(ctx context.Context, tokenString, expectedAud string) (*
 		return nil, errors.New("missing apple service id")
 	}
 
-	client, err := appleid.New()
-	if err != nil {
-		return nil, fmt.Errorf("apple id token client: %w", err)
-	}
-
+	client := validator.NewClient()
 	idToken, err := client.VerifyIdToken(expectedAud, tokenString)
 	if err != nil {
 		return nil, err
 	}
-	if idToken.Issuer != "https://appleid.apple.com" {
-		return nil, fmt.Errorf("unexpected issuer: %s", idToken.Issuer)
+	if idToken.Iss != "https://appleid.apple.com" {
+		return nil, fmt.Errorf("unexpected issuer: %s", idToken.Iss)
 	}
 
 	_ = ctx
 	return &ExternalTokenClaims{
-		Issuer:  idToken.Issuer,
-		Subject: idToken.Subject,
+		Issuer:  idToken.Iss,
+		Subject: idToken.Sub,
 		Email:   strings.TrimSpace(strings.ToLower(idToken.Email)),
 	}, nil
 }

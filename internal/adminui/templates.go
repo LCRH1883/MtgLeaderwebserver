@@ -15,8 +15,8 @@ type templates struct {
 }
 
 type viewData struct {
-	Title string
-	Error string
+	Title   string
+	Error   string
 	Success string
 }
 
