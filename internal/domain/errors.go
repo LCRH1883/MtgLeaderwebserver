@@ -16,6 +16,7 @@ var (
 	ErrInvalidCredentials = errors.New("invalid_credentials")
 	ErrUserDisabled       = errors.New("user_disabled")
 	ErrFriendshipExists   = errors.New("friendship_exists")
+	ErrExternalAccountExists = errors.New("external_account_exists")
 	ErrValidation         = errors.New("validation")
 )
 

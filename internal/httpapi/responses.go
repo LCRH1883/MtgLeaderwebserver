@@ -45,6 +45,8 @@ func WriteDomainError(w http.ResponseWriter, err error) {
 		WriteError(w, http.StatusForbidden, "user_disabled", "user is disabled")
 	case errors.Is(err, domain.ErrFriendshipExists):
 		WriteError(w, http.StatusConflict, "friendship_exists", "friend request already exists")
+	case errors.Is(err, domain.ErrExternalAccountExists):
+		WriteError(w, http.StatusConflict, "external_account_exists", "external account already linked")
 	case errors.Is(err, domain.ErrNotFound):
 		WriteError(w, http.StatusNotFound, "not_found", "not found")
 	default:

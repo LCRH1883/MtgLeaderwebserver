@@ -24,6 +24,15 @@ type UserWithPassword struct {
 	PasswordHash string
 }
 
+type ExternalAccount struct {
+	ID         string
+	UserID     string
+	Provider   string
+	ProviderID string
+	Email      string
+	CreatedAt  time.Time
+}
+
 type Session struct {
 	ID        string
 	UserID    string

@@ -3,7 +3,9 @@ module MtgLeaderwebserver
 go 1.24.0
 
 require (
+	github.com/HendrickPhan/go-verify-apple-id-token v1.1.2
 	github.com/jackc/pgx/v5 v5.7.5
+	google.golang.org/api v0.213.0
 	golang.org/x/crypto v0.40.0
 )
 

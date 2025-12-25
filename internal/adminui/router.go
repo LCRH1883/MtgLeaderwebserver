@@ -67,6 +67,8 @@ func New(opts Opts) http.Handler {
 	mux.HandleFunc("POST /admin/login", app.handleLoginPost)
 	mux.HandleFunc("POST /admin/logout", app.handleLogoutPost)
 	mux.HandleFunc("GET /admin/users", app.requireAdmin(app.handleUsersList))
+	mux.HandleFunc("GET /admin/password", app.requireAdmin(app.handlePasswordGet))
+	mux.HandleFunc("POST /admin/password", app.requireAdmin(app.handlePasswordPost))
 	staticFS, err := fs.Sub(assets, "static")
 	if err != nil {
 		logger.Error("adminui: static fs setup failed", "err", err)

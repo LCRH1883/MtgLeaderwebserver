@@ -9,7 +9,7 @@ Go backend for an MTG app (auth → friends → matches → stats).
 - Postgres
 - SQL migrations are `goose`-compatible (`migrations/`) and runnable via `scripts/migrate`
   - Optional admin UI: set `APP_ADMIN_EMAILS` (comma-separated allowlist)
-  - Optional admin bootstrap user: set `APP_ADMIN_BOOTSTRAP_EMAIL` + `APP_ADMIN_BOOTSTRAP_PASSWORD`
+  - Optional admin bootstrap user: set `APP_ADMIN_BOOTSTRAP_EMAIL` + `APP_ADMIN_BOOTSTRAP_PASSWORD` (defaults to `lh@intagri.io` / `admin`)
 
 ### Run
 Set env vars (minimum for auth):
@@ -17,6 +17,9 @@ Set env vars (minimum for auth):
 - `APP_DB_DSN` (Postgres DSN)
 - `APP_COOKIE_SECRET` (recommend 32+ bytes)
 - `email` is required for all users (login is email/password)
+- Optional external sign-in:
+  - `GOOGLE_WEB_CLIENT_ID`
+  - `APPLE_SERVICE_ID`
 
 Then:
 ```bash
@@ -32,6 +35,8 @@ scripts/go run ./cmd/server
 - `GET /healthz` → `ok`
 - `POST /v1/auth/register`
 - `POST /v1/auth/login` (email + password)
+- `POST /v1/auth/google`
+- `POST /v1/auth/apple`
 - `POST /v1/auth/logout`
 - `GET /v1/users/me`
 - `GET /v1/users/search?q=...`

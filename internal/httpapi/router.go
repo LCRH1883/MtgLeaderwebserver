@@ -52,11 +52,15 @@ func NewRouter(opts RouterOpts) http.Handler {
 	if api.authSvc == nil {
 		mux.HandleFunc("POST /v1/auth/register", handleNotImplemented)
 		mux.HandleFunc("POST /v1/auth/login", handleNotImplemented)
+		mux.HandleFunc("POST /v1/auth/google", handleNotImplemented)
+		mux.HandleFunc("POST /v1/auth/apple", handleNotImplemented)
 		mux.HandleFunc("POST /v1/auth/logout", handleNotImplemented)
 		mux.HandleFunc("GET /v1/users/me", handleNotImplemented)
 	} else {
 		mux.HandleFunc("POST /v1/auth/register", api.handleAuthRegister)
 		mux.HandleFunc("POST /v1/auth/login", api.handleAuthLogin)
+		mux.HandleFunc("POST /v1/auth/google", api.handleAuthLoginGoogle)
+		mux.HandleFunc("POST /v1/auth/apple", api.handleAuthLoginApple)
 		mux.HandleFunc("POST /v1/auth/logout", api.requireAuth(api.handleAuthLogout))
 		mux.HandleFunc("GET /v1/users/me", api.requireAuth(api.handleUsersMe))
 		if api.usersSvc != nil {

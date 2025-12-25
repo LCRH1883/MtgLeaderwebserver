@@ -1,11 +1,13 @@
 package adminui
 
 import (
+	"errors"
 	"net"
 	"net/http"
 	"strings"
 
 	"MtgLeaderwebserver/internal/auth"
+	"MtgLeaderwebserver/internal/domain"
 )
 
 func (a *app) handleDashboard(w http.ResponseWriter, r *http.Request) {
@@ -72,6 +74,65 @@ func (a *app) handleUsersList(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	a.templates.renderUsers(w, http.StatusOK, usersViewData{Title: "Users", Users: rows})
+}
+
+func (a *app) handlePasswordGet(w http.ResponseWriter, r *http.Request) {
+	u, _, ok := a.currentUser(r)
+	if !ok {
+		http.Redirect(w, r, "/admin/login", http.StatusFound)
+		return
+	}
+	a.templates.renderPassword(w, http.StatusOK, passwordViewData{Title: "Change Password", Email: u.Email})
+}
+
+func (a *app) handlePasswordPost(w http.ResponseWriter, r *http.Request) {
+	u, _, ok := a.currentUser(r)
+	if !ok {
+		http.Redirect(w, r, "/admin/login", http.StatusFound)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		a.templates.renderPassword(w, http.StatusBadRequest, passwordViewData{Title: "Change Password", Email: u.Email, Error: "Invalid form"})
+		return
+	}
+
+	current := r.Form.Get("current_password")
+	newPassword := r.Form.Get("new_password")
+	confirm := r.Form.Get("confirm_password")
+	data := passwordViewData{Title: "Change Password", Email: u.Email}
+
+	switch {
+	case current == "" || newPassword == "" || confirm == "":
+		data.Error = "All fields are required"
+		a.templates.renderPassword(w, http.StatusBadRequest, data)
+		return
+	case newPassword != confirm:
+		data.Error = "New passwords do not match"
+		a.templates.renderPassword(w, http.StatusBadRequest, data)
+		return
+	case len(newPassword) < 12:
+		data.Error = "New password must be at least 12 characters"
+		a.templates.renderPassword(w, http.StatusBadRequest, data)
+		return
+	}
+
+	if err := a.authSvc.ChangePassword(r.Context(), u.Email, current, newPassword); err != nil {
+		switch {
+		case errors.Is(err, domain.ErrInvalidCredentials):
+			data.Error = "Current password is incorrect"
+			a.templates.renderPassword(w, http.StatusUnauthorized, data)
+		case errors.Is(err, domain.ErrUserDisabled):
+			data.Error = "Account is disabled"
+			a.templates.renderPassword(w, http.StatusForbidden, data)
+		default:
+			data.Error = "Failed to update password"
+			a.templates.renderPassword(w, http.StatusInternalServerError, data)
+		}
+		return
+	}
+
+	data.Success = "Password updated"
+	a.templates.renderPassword(w, http.StatusOK, data)
 }
 
 // minimal duplicate of httpapi.clientIP to avoid import cycles.
