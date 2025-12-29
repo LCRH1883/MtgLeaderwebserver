@@ -21,8 +21,11 @@ type viewData struct {
 }
 
 type usersViewData struct {
-	Title string
-	Users []userRow
+	Title  string
+	Users  []userRow
+	Query  string
+	Error  string
+	Notice string
 }
 
 type passwordViewData struct {
@@ -33,10 +36,12 @@ type passwordViewData struct {
 }
 
 type userRow struct {
-	ID       string
-	Email    string
-	Username string
-	Status   string
+	ID        string
+	Email     string
+	Username  string
+	Status    string
+	JoinedAt  string
+	LastLogin string
 }
 
 func parseTemplates() (*templates, error) {

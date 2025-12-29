@@ -5,25 +5,49 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>{{.Title}}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/admin/static/admin.css" />
   </head>
-  <body>
-    <main class="container auth">
-      <h1>Admin Login</h1>
-      {{if .Error}}<div class="alert">{{.Error}}</div>{{end}}
-      <form method="post" action="/admin/login" class="card">
-        <label>
-          <div class="label">Email</div>
-          <input name="email" type="email" autocomplete="email" required />
-        </label>
-        <label>
-          <div class="label">Password</div>
-          <input name="password" type="password" autocomplete="current-password" required />
-        </label>
-        <button type="submit">Sign in</button>
-      </form>
+  <body class="admin-auth">
+    <main class="auth-shell">
+      <section class="auth-card stack">
+        <div>
+          <p class="eyebrow">Restricted</p>
+          <h1>Admin Console</h1>
+          <p class="lead">Sign in to manage user accounts and platform settings.</p>
+        </div>
+        {{if .Error}}<div class="alert">{{.Error}}</div>{{end}}
+        <form method="post" action="/admin/login" class="stack">
+          <label>
+            <div class="label">Email</div>
+            <input name="email" type="email" autocomplete="email" required />
+          </label>
+          <label>
+            <div class="label">Password</div>
+            <input name="password" type="password" autocomplete="current-password" required />
+          </label>
+          <button type="submit">Sign in</button>
+        </form>
+        <div class="muted small">Access is limited to configured admin emails.</div>
+      </section>
+      <aside class="auth-panel">
+        <div class="auth-panel-inner stack">
+          <div>
+            <p class="eyebrow">MTG Leader</p>
+            <h2>Operations at a glance.</h2>
+            <p class="lead">Review users, reset passwords, and keep the community healthy.</p>
+          </div>
+          <ul class="feature-list">
+            <li><span class="feature-tag">Users</span>Browse account status and details.</li>
+            <li><span class="feature-tag">Security</span>Rotate credentials in minutes.</li>
+            <li><span class="feature-tag">Signals</span>Spot issues before they spread.</li>
+          </ul>
+          <div class="auth-panel-footer small">Looking for player tools? <a class="inline-link" href="/app/login">Go to user login</a>.</div>
+        </div>
+      </aside>
     </main>
   </body>
 </html>
 {{end}}
-

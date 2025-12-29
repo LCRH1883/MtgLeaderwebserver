@@ -11,12 +11,12 @@
     <link rel="stylesheet" href="/app/static/app.css" />
   </head>
   <body class="auth-page">
-    <main class="container auth">
-      <div class="auth-card stack">
+    <main class="auth-shell">
+      <section class="auth-card stack">
         <div>
           <p class="eyebrow">Welcome back</p>
-          <h1>Sign in to your account.</h1>
-          <p class="lead">Use your email to manage friends and requests.</p>
+          <h1>Sign in to MTG Friends.</h1>
+          <p class="lead">Use your email to manage friends, matches, and requests.</p>
         </div>
         {{if .Error}}
           <div class="alert">{{.Error}}</div>
@@ -29,7 +29,22 @@
           <button type="submit">Sign in</button>
         </form>
         <div class="muted small">New here? <a class="inline-link" href="/app/register">Create an account</a>.</div>
-      </div>
+      </section>
+      <aside class="auth-panel">
+        <div class="auth-panel-inner stack">
+          <div>
+            <p class="eyebrow">Community hub</p>
+            <h2>Build your pod.</h2>
+            <p class="lead">Keep tabs on the players you meet at every table.</p>
+          </div>
+          <ul class="feature-list">
+            <li><span class="feature-tag">01</span>Send friend requests in seconds.</li>
+            <li><span class="feature-tag">02</span>Track matches and spotlight wins.</li>
+            <li><span class="feature-tag">03</span>Stay signed in across devices.</li>
+          </ul>
+          <div class="auth-panel-footer small">Need a new account? <a class="inline-link" href="/app/register">Create one here</a>.</div>
+        </div>
+      </aside>
     </main>
   </body>
 </html>

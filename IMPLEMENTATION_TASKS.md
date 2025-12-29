@@ -12,6 +12,7 @@ The intent is: complete each step in order, with clear “done” checks, and wi
 - Base path: `/v1`
 - JSON only (request/response), except `/healthz`.
 - Errors use a consistent JSON envelope (defined in **Step 5**).
+- Production base URL: `https://mtgleader.xyz`.
 
 ### Auth approach (MVP)
 - **Server-side sessions in Postgres**.
@@ -125,7 +126,7 @@ Tasks:
 - Optionally add DB ping in `healthz` once DB is wired (**Step 4**).
 
 Done when:
-- `curl http://127.0.0.1:8080/healthz` returns `ok`.
+- `curl https://mtgleader.xyz/healthz` returns `ok` (local dev: `http://127.0.0.1:8080/healthz`).
 
 References:
 - Used by systemd/Nginx later; also helps you verify routing is correct before auth work.
@@ -491,7 +492,7 @@ Done when:
 ### 10.1 systemd unit + env file (single-server deployment)
 Tasks:
 - Create an example unit file and env file template (don’t include secrets in git).
-- Ensure the service binds to `127.0.0.1:8080` (private) and is proxied by Nginx.
+- Ensure the service binds to `127.0.0.1:8080` (private) and is proxied by Nginx for `https://mtgleader.xyz`.
 
 Done when:
 - Server starts on boot and is reachable via Nginx reverse proxy.
@@ -505,7 +506,7 @@ Tasks:
 - Forward `X-Forwarded-Proto` and `X-Forwarded-For`.
 
 Done when:
-- HTTPS works end-to-end and cookies are set correctly on the real domain.
+- HTTPS works end-to-end and cookies are set correctly on `https://mtgleader.xyz`.
 
 ---
 
@@ -540,4 +541,3 @@ Tasks:
 ## Suggested next step (what we do next together)
 
 Start Phase 1 + Phase 2 (layout + config + `/healthz`), then Phase 3/4 (migrations + DB pool), then Phase 8 (auth endpoints). That gets your Android app unblocked quickly.
-

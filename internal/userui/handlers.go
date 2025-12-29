@@ -10,7 +10,17 @@ import (
 	"MtgLeaderwebserver/internal/domain"
 )
 
+const (
+	loginUnavailableMsg    = "Login is unavailable. Set APP_DB_DSN and restart the server."
+	registerUnavailableMsg = "Registration is unavailable. Set APP_DB_DSN and restart the server."
+	uiUnavailableMsg       = "User UI is unavailable. Set APP_DB_DSN and restart the server."
+)
+
 func (a *app) handleLoginGet(w http.ResponseWriter, r *http.Request) {
+	if a.authSvc == nil {
+		a.templates.renderLogin(w, http.StatusServiceUnavailable, loginViewData{Title: "MTG Friends", Error: loginUnavailableMsg})
+		return
+	}
 	if _, _, ok := a.currentUser(r); ok {
 		http.Redirect(w, r, "/app/", http.StatusFound)
 		return
@@ -19,6 +29,10 @@ func (a *app) handleLoginGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) handleLoginPost(w http.ResponseWriter, r *http.Request) {
+	if a.authSvc == nil {
+		a.templates.renderLogin(w, http.StatusServiceUnavailable, loginViewData{Title: "MTG Friends", Error: loginUnavailableMsg})
+		return
+	}
 	if _, _, ok := a.currentUser(r); ok {
 		http.Redirect(w, r, "/app/", http.StatusFound)
 		return
@@ -57,6 +71,10 @@ func (a *app) handleLoginPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) handleRegisterGet(w http.ResponseWriter, r *http.Request) {
+	if a.authSvc == nil {
+		a.templates.renderRegister(w, http.StatusServiceUnavailable, registerViewData{Title: "Create Account", Error: registerUnavailableMsg})
+		return
+	}
 	if _, _, ok := a.currentUser(r); ok {
 		http.Redirect(w, r, "/app/", http.StatusFound)
 		return
@@ -65,6 +83,10 @@ func (a *app) handleRegisterGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) handleRegisterPost(w http.ResponseWriter, r *http.Request) {
+	if a.authSvc == nil {
+		a.templates.renderRegister(w, http.StatusServiceUnavailable, registerViewData{Title: "Create Account", Error: registerUnavailableMsg})
+		return
+	}
 	if _, _, ok := a.currentUser(r); ok {
 		http.Redirect(w, r, "/app/", http.StatusFound)
 		return
@@ -135,6 +157,11 @@ func (a *app) handleRegisterPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) handleLogoutPost(w http.ResponseWriter, r *http.Request) {
+	if a.authSvc == nil {
+		auth.ClearSessionCookie(w, a.cookieSecure)
+		http.Redirect(w, r, "/app/login", http.StatusFound)
+		return
+	}
 	_, sessID, ok := a.currentUser(r)
 	if ok && sessID != "" {
 		_ = a.authSvc.Logout(r.Context(), sessID)
@@ -144,6 +171,10 @@ func (a *app) handleLogoutPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) handleHome(w http.ResponseWriter, r *http.Request) {
+	if a.friendsSvc == nil || a.usersSvc == nil {
+		a.templates.renderError(w, http.StatusServiceUnavailable, "Unavailable", uiUnavailableMsg)
+		return
+	}
 	u, _, ok := a.currentUser(r)
 	if !ok {
 		http.Redirect(w, r, "/app/login", http.StatusFound)
@@ -221,6 +252,10 @@ func (a *app) handleHome(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) handleFriendRequest(w http.ResponseWriter, r *http.Request) {
+	if a.friendsSvc == nil {
+		a.templates.renderError(w, http.StatusServiceUnavailable, "Unavailable", uiUnavailableMsg)
+		return
+	}
 	u, _, ok := a.currentUser(r)
 	if !ok {
 		http.Redirect(w, r, "/app/login", http.StatusFound)
@@ -261,6 +296,10 @@ func (a *app) handleFriendRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) handleFriendAccept(w http.ResponseWriter, r *http.Request) {
+	if a.friendsSvc == nil {
+		a.templates.renderError(w, http.StatusServiceUnavailable, "Unavailable", uiUnavailableMsg)
+		return
+	}
 	u, _, ok := a.currentUser(r)
 	if !ok {
 		http.Redirect(w, r, "/app/login", http.StatusFound)
@@ -293,6 +332,10 @@ func (a *app) handleFriendAccept(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) handleFriendDecline(w http.ResponseWriter, r *http.Request) {
+	if a.friendsSvc == nil {
+		a.templates.renderError(w, http.StatusServiceUnavailable, "Unavailable", uiUnavailableMsg)
+		return
+	}
 	u, _, ok := a.currentUser(r)
 	if !ok {
 		http.Redirect(w, r, "/app/login", http.StatusFound)
@@ -325,6 +368,10 @@ func (a *app) handleFriendDecline(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) handleFriendCancel(w http.ResponseWriter, r *http.Request) {
+	if a.friendsSvc == nil {
+		a.templates.renderError(w, http.StatusServiceUnavailable, "Unavailable", uiUnavailableMsg)
+		return
+	}
 	u, _, ok := a.currentUser(r)
 	if !ok {
 		http.Redirect(w, r, "/app/login", http.StatusFound)

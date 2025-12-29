@@ -11,8 +11,8 @@
     <link rel="stylesheet" href="/app/static/app.css" />
   </head>
   <body class="auth-page">
-    <main class="container auth">
-      <div class="auth-card stack">
+    <main class="auth-shell">
+      <section class="auth-card stack">
         <div>
           <p class="eyebrow">Create account</p>
           <h1>Join MTG Friends.</h1>
@@ -33,7 +33,22 @@
           <button type="submit">Create account</button>
         </form>
         <div class="muted small">Already have an account? <a class="inline-link" href="/app/login">Sign in</a>.</div>
-      </div>
+      </section>
+      <aside class="auth-panel">
+        <div class="auth-panel-inner stack">
+          <div>
+            <p class="eyebrow">Set up your deck</p>
+            <h2>Find your table.</h2>
+            <p class="lead">Create a profile that makes it easy to reconnect after every match.</p>
+          </div>
+          <ul class="feature-list">
+            <li><span class="feature-tag">01</span>Custom username for quick searches.</li>
+            <li><span class="feature-tag">02</span>Manage friend requests with ease.</li>
+            <li><span class="feature-tag">03</span>Track stats with a clean dashboard.</li>
+          </ul>
+          <div class="auth-panel-footer small">Already active? <a class="inline-link" href="/app/login">Return to sign in</a>.</div>
+        </div>
+      </aside>
     </main>
   </body>
 </html>

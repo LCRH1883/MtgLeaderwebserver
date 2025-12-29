@@ -29,7 +29,7 @@ func New(opts Opts) http.Handler {
 	}
 
 	if opts.Auth == nil || opts.Friends == nil || opts.Users == nil {
-		return http.NotFoundHandler()
+		logger.Warn("userui: missing services", "auth", opts.Auth != nil, "friends", opts.Friends != nil, "users", opts.Users != nil)
 	}
 
 	app := &app{

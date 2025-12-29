@@ -33,3 +33,24 @@
 ## Configuration & Security Tips
 - Use `.env.example` as a starting point and set required env vars: `APP_ADDR`, `APP_DB_DSN`, `APP_COOKIE_SECRET`.
 - Admin UI access is gated by `APP_ADMIN_EMAILS`; keep this list tight in shared environments.
+
+## Postgres Setup (Required)
+- Create a dedicated DB role and database for this app:
+  - `sudo -u postgres psql -d postgres -c "CREATE ROLE mtgleader WITH LOGIN PASSWORD '8yr3jctj';"`
+  - `sudo -u postgres createdb -O mtgleader mtg`
+- If they already exist, reset ownership/password:
+  - `sudo -u postgres psql -d postgres -c "ALTER ROLE mtgleader WITH PASSWORD '8yr3jctj';"`
+  - `sudo -u postgres psql -d postgres -c "ALTER DATABASE mtg OWNER TO mtgleader;"`
+- DSN (local dev): `postgres://mtgleader:8yr3jctj@127.0.0.1:5432/mtg?sslmode=disable`
+- DSN (prod): `postgres://mtgleader:8yr3jctj@127.0.0.1:5432/mtg?sslmode=require`
+- Example prod env file: `deploy/mtgleaderwebserver.env.example`
+- If you access over HTTP, set `APP_PUBLIC_URL` to `http://127.0.0.1:8080` or login cookies will not persist.
+
+## Reverse Proxy (Required for HTTPS -> HTTP)
+- If using Nginx Proxy Manager or nginx with HTTPS termination, set `APP_PUBLIC_URL` to the external HTTPS URL.
+- Forward `Host` and `X-Forwarded-Proto` headers so cookies are issued for the correct domain.
+
+## Canonical URLs
+- Production base URL: `https://mtgleader.xyz` (use full URLs in docs and responses).
+- User UI: `https://mtgleader.xyz/app/login` and `https://mtgleader.xyz/app/register`.
+- Admin UI: `https://mtgleader.xyz/admin/login`.

@@ -76,7 +76,10 @@ func main() {
 			Friends: friendsSvc,
 		}
 		usersSvc = &service.UsersService{Store: userSearch}
-		adminSvc = &service.AdminService{Users: adminUsers}
+		adminSvc = &service.AdminService{
+			Users:     adminUsers,
+			Passwords: users,
+		}
 		dbPing = pgPool.Ping
 	}
 
@@ -121,28 +124,17 @@ func main() {
 		})
 	}
 
-	if authSvc != nil && friendsSvc != nil && usersSvc != nil {
-		userRouter := userui.New(userui.Opts{
-			Logger:       logger,
-			Auth:         authSvc,
-			Friends:      friendsSvc,
-			Users:        usersSvc,
-			CookieCodec:  auth.NewCookieCodec([]byte(cfg.CookieSecret)),
-			CookieSecure: cfg.CookieSecure(),
-			SessionTTL:   cfg.SessionTTL,
-		})
-		root.Handle("/app", userRouter)
-		root.Handle("/app/", userRouter)
-	} else {
-		root.HandleFunc("/app", func(w http.ResponseWriter, r *http.Request) {
-			http.Redirect(w, r, "/app/", http.StatusFound)
-		})
-		root.HandleFunc("/app/", func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-			w.WriteHeader(http.StatusNotFound)
-			_, _ = w.Write([]byte("user ui disabled: set APP_DB_DSN (and restart the server)\n"))
-		})
-	}
+	userRouter := userui.New(userui.Opts{
+		Logger:       logger,
+		Auth:         authSvc,
+		Friends:      friendsSvc,
+		Users:        usersSvc,
+		CookieCodec:  auth.NewCookieCodec([]byte(cfg.CookieSecret)),
+		CookieSecure: cfg.CookieSecure(),
+		SessionTTL:   cfg.SessionTTL,
+	})
+	root.Handle("/app", userRouter)
+	root.Handle("/app/", userRouter)
 
 	srv := &http.Server{
 		Addr:              cfg.Addr,
