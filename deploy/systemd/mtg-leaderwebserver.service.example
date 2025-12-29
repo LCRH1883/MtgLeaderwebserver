@@ -18,7 +18,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/mtgleaderwebserver
+ReadWritePaths=/opt/mtgleaderwebserver /var/lib/mtgleader
 
 [Install]
 WantedBy=multi-user.target

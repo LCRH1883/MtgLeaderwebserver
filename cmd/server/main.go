@@ -39,6 +39,7 @@ func main() {
 		adminSvc   *service.AdminService
 		resetSvc   *service.PasswordResetService
 		emailSvc   *service.EmailService
+		profileSvc *service.ProfileService
 		dbPing     func(context.Context) error
 	)
 
@@ -86,6 +87,7 @@ func main() {
 			Users: users,
 		}
 		emailSvc = &service.EmailService{Settings: adminSettings}
+		profileSvc = &service.ProfileService{Store: users}
 		dbPing = pgPool.Ping
 	}
 
@@ -139,6 +141,8 @@ func main() {
 		Friends:      friendsSvc,
 		Users:        usersSvc,
 		Reset:        resetSvc,
+		Profile:      profileSvc,
+		AvatarDir:    cfg.AvatarDir,
 		CookieCodec:  auth.NewCookieCodec([]byte(cfg.CookieSecret)),
 		CookieSecure: cfg.CookieSecure(),
 		SessionTTL:   cfg.SessionTTL,

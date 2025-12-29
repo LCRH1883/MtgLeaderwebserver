@@ -18,6 +18,8 @@ type Opts struct {
 	Friends      *service.FriendsService
 	Users        *service.UsersService
 	Reset        *service.PasswordResetService
+	Profile      *service.ProfileService
+	AvatarDir    string
 	CookieCodec  auth.CookieCodec
 	CookieSecure bool
 	SessionTTL   time.Duration
@@ -39,9 +41,14 @@ func New(opts Opts) http.Handler {
 		friendsSvc:   opts.Friends,
 		usersSvc:     opts.Users,
 		resetSvc:     opts.Reset,
+		profileSvc:   opts.Profile,
+		avatarDir:    opts.AvatarDir,
 		cookieCodec:  opts.CookieCodec,
 		cookieSecure: opts.CookieSecure,
 		sessionTTL:   opts.SessionTTL,
+	}
+	if app.avatarDir == "" {
+		app.avatarDir = "data/avatars"
 	}
 
 	t, err := parseTemplates()
@@ -62,6 +69,9 @@ func New(opts Opts) http.Handler {
 	mux.HandleFunc("POST /app/register", app.handleRegisterPost)
 	mux.HandleFunc("GET /app/reset", app.handleResetGet)
 	mux.HandleFunc("POST /app/reset", app.handleResetPost)
+	mux.HandleFunc("GET /app/profile", app.requireAuth(app.handleProfileGet))
+	mux.HandleFunc("POST /app/profile", app.requireAuth(app.handleProfilePost))
+	mux.HandleFunc("POST /app/profile/avatar", app.requireAuth(app.handleProfileAvatarPost))
 	mux.HandleFunc("POST /app/logout", app.handleLogoutPost)
 	mux.HandleFunc("POST /app/friends/requests", app.requireAuth(app.handleFriendRequest))
 	mux.HandleFunc("POST /app/friends/requests/accept", app.requireAuth(app.handleFriendAccept))
@@ -79,6 +89,10 @@ func New(opts Opts) http.Handler {
 	mux.Handle("GET /app/static/", static)
 	mux.Handle("HEAD /app/static/", static)
 
+	avatars := http.StripPrefix("/app/avatars/", http.FileServer(http.Dir(app.avatarDir)))
+	mux.Handle("GET /app/avatars/", avatars)
+	mux.Handle("HEAD /app/avatars/", avatars)
+
 	return mux
 }
 
@@ -89,6 +103,8 @@ type app struct {
 	friendsSvc *service.FriendsService
 	usersSvc   *service.UsersService
 	resetSvc   *service.PasswordResetService
+	profileSvc *service.ProfileService
+	avatarDir  string
 
 	cookieCodec  auth.CookieCodec
 	cookieSecure bool

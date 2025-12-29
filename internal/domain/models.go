@@ -10,13 +10,16 @@ const (
 )
 
 type User struct {
-	ID          string
-	Email       string
-	Username    string
-	Status      UserStatus
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	LastLoginAt *time.Time
+	ID              string
+	Email           string
+	Username        string
+	DisplayName     string
+	AvatarPath      string
+	Status          UserStatus
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	LastLoginAt     *time.Time
+	AvatarUpdatedAt *time.Time
 }
 
 type UserWithPassword struct {

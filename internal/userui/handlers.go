@@ -2,9 +2,20 @@ package userui
 
 import (
 	"errors"
+	"fmt"
+	"image"
+	"image/color"
+	"image/draw"
+	_ "image/gif"
+	"image/jpeg"
+	_ "image/png"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 
 	"MtgLeaderwebserver/internal/auth"
 	"MtgLeaderwebserver/internal/domain"
@@ -227,6 +238,163 @@ func (a *app) handleResetPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Redirect(w, r, "/app/login?notice=password_reset", http.StatusFound)
+}
+
+func (a *app) handleProfileGet(w http.ResponseWriter, r *http.Request) {
+	if a.profileSvc == nil {
+		a.templates.renderError(w, http.StatusServiceUnavailable, "Unavailable", "Profile is unavailable.")
+		return
+	}
+	u, _, ok := a.currentUser(r)
+	if !ok {
+		http.Redirect(w, r, "/app/login", http.StatusFound)
+		return
+	}
+
+	data := profileViewData{
+		Title:       "Profile",
+		User:        u,
+		DisplayName: u.DisplayName,
+		AvatarURL:   avatarURL(u),
+		Initials:    initialsForUser(u),
+		Notice:      mapProfileNotice(strings.TrimSpace(r.URL.Query().Get("notice"))),
+		Error:       mapProfileError(strings.TrimSpace(r.URL.Query().Get("error"))),
+	}
+	a.templates.renderProfile(w, http.StatusOK, data)
+}
+
+func (a *app) handleProfilePost(w http.ResponseWriter, r *http.Request) {
+	if a.profileSvc == nil {
+		a.templates.renderError(w, http.StatusServiceUnavailable, "Unavailable", "Profile is unavailable.")
+		return
+	}
+	u, _, ok := a.currentUser(r)
+	if !ok {
+		http.Redirect(w, r, "/app/login", http.StatusFound)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		a.templates.renderProfile(w, http.StatusBadRequest, profileViewData{
+			Title:       "Profile",
+			User:        u,
+			DisplayName: u.DisplayName,
+			AvatarURL:   avatarURL(u),
+			Initials:    initialsForUser(u),
+			Error:       "Invalid form submission.",
+		})
+		return
+	}
+
+	displayName := strings.TrimSpace(r.FormValue("display_name"))
+	if err := a.profileSvc.UpdateDisplayName(r.Context(), u.ID, displayName); err != nil {
+		u.DisplayName = displayName
+		msg := "Failed to update profile."
+		var vErr *domain.ValidationError
+		if errors.As(err, &vErr) {
+			if fieldMsg, ok := vErr.Fields["display_name"]; ok {
+				msg = fieldMsg
+			}
+		}
+		a.templates.renderProfile(w, http.StatusBadRequest, profileViewData{
+			Title:       "Profile",
+			User:        u,
+			DisplayName: displayName,
+			AvatarURL:   avatarURL(u),
+			Initials:    initialsForUser(u),
+			Error:       msg,
+		})
+		return
+	}
+
+	http.Redirect(w, r, "/app/profile?notice=profile_saved", http.StatusFound)
+}
+
+func (a *app) handleProfileAvatarPost(w http.ResponseWriter, r *http.Request) {
+	if a.profileSvc == nil {
+		http.Error(w, "Profile is unavailable.", http.StatusServiceUnavailable)
+		return
+	}
+	u, _, ok := a.currentUser(r)
+	if !ok {
+		http.Error(w, "Unauthorized.", http.StatusUnauthorized)
+		return
+	}
+
+	const maxAvatarSize = 8 << 20
+	r.Body = http.MaxBytesReader(w, r.Body, maxAvatarSize)
+	if err := r.ParseMultipartForm(maxAvatarSize); err != nil {
+		http.Error(w, "Avatar file is too large.", http.StatusBadRequest)
+		return
+	}
+
+	file, _, err := r.FormFile("avatar")
+	if err != nil {
+		http.Error(w, "Avatar file is required.", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	img, _, err := image.Decode(file)
+	if err != nil {
+		http.Error(w, "Avatar must be a valid image file.", http.StatusBadRequest)
+		return
+	}
+	bounds := img.Bounds()
+	if bounds.Dx() != 512 || bounds.Dy() != 512 {
+		http.Error(w, "Avatar must be 512x512. Use the crop tool.", http.StatusBadRequest)
+		return
+	}
+
+	if err := os.MkdirAll(a.avatarDir, 0o755); err != nil {
+		a.logger.Error("userui: create avatar dir failed", "err", err)
+		http.Error(w, "Failed to store avatar.", http.StatusInternalServerError)
+		return
+	}
+
+	filename := fmt.Sprintf("%s.jpg", u.ID)
+	targetPath := filepath.Join(a.avatarDir, filename)
+	tmpFile, err := os.CreateTemp(a.avatarDir, "avatar-*")
+	if err != nil {
+		a.logger.Error("userui: create avatar file failed", "err", err)
+		http.Error(w, "Failed to store avatar.", http.StatusInternalServerError)
+		return
+	}
+
+	writeErr := func(err error) {
+		_ = tmpFile.Close()
+		_ = os.Remove(tmpFile.Name())
+		a.logger.Error("userui: write avatar failed", "err", err)
+		http.Error(w, "Failed to store avatar.", http.StatusInternalServerError)
+	}
+
+	dst := image.NewRGBA(image.Rect(0, 0, 512, 512))
+	draw.Draw(dst, dst.Bounds(), &image.Uniform{C: color.White}, image.Point{}, draw.Src)
+	draw.Draw(dst, dst.Bounds(), img, bounds.Min, draw.Over)
+	if err := jpeg.Encode(tmpFile, dst, &jpeg.Options{Quality: 85}); err != nil {
+		writeErr(err)
+		return
+	}
+	if err := tmpFile.Close(); err != nil {
+		writeErr(err)
+		return
+	}
+	if err := os.Rename(tmpFile.Name(), targetPath); err != nil {
+		writeErr(err)
+		return
+	}
+	if err := os.Chmod(targetPath, 0o644); err != nil {
+		a.logger.Error("userui: chmod avatar failed", "err", err)
+	}
+
+	updatedAt := time.Now()
+	if err := a.profileSvc.UpdateAvatar(r.Context(), u.ID, filename, updatedAt); err != nil {
+		_ = os.Remove(targetPath)
+		a.logger.Error("userui: update avatar failed", "err", err)
+		http.Error(w, "Failed to update avatar.", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (a *app) handleHome(w http.ResponseWriter, r *http.Request) {
@@ -540,4 +708,64 @@ func mapErrorCode(code string) string {
 	default:
 		return ""
 	}
+}
+
+func mapProfileNotice(code string) string {
+	switch code {
+	case "profile_saved":
+		return "Profile updated."
+	case "avatar_saved":
+		return "Avatar updated."
+	default:
+		return ""
+	}
+}
+
+func mapProfileError(code string) string {
+	switch code {
+	case "avatar_failed":
+		return "Avatar update failed."
+	default:
+		return ""
+	}
+}
+
+func avatarURL(u domain.User) string {
+	if u.AvatarPath == "" {
+		return ""
+	}
+	escaped := url.PathEscape(u.AvatarPath)
+	v := u.AvatarUpdatedAt
+	if v == nil {
+		v = &u.UpdatedAt
+	}
+	return "/app/avatars/" + escaped + "?v=" + strconv.FormatInt(v.Unix(), 10)
+}
+
+func initialsForUser(u domain.User) string {
+	name := strings.TrimSpace(u.DisplayName)
+	if name == "" {
+		name = strings.TrimSpace(u.Username)
+	}
+	if name == "" {
+		return "?"
+	}
+	parts := strings.FieldsFunc(name, func(r rune) bool {
+		return r == ' ' || r == '_' || r == '-'
+	})
+	if len(parts) == 0 {
+		return "?"
+	}
+	first := []rune(parts[0])
+	if len(parts) == 0 {
+		return "?"
+	}
+	if len(parts) > 1 {
+		second := []rune(parts[1])
+		return strings.ToUpper(string([]rune{first[0], second[0]}))
+	}
+	if len(first) >= 2 {
+		return strings.ToUpper(string(first[:2]))
+	}
+	return strings.ToUpper(string(first[0]))
 }

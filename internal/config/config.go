@@ -25,6 +25,8 @@ type Config struct {
 	AdminBootstrapEmail    string
 	AdminBootstrapUsername string
 	AdminBootstrapPassword string
+
+	AvatarDir string
 }
 
 func Load() (Config, error) {
@@ -40,6 +42,10 @@ func LoadFromEnv(getenv func(string) string) (Config, error) {
 		CookieSecret:      getenv("APP_COOKIE_SECRET"),
 		GoogleWebClientID: strings.TrimSpace(getenv("GOOGLE_WEB_CLIENT_ID")),
 		AppleServiceID:    strings.TrimSpace(getenv("APPLE_SERVICE_ID")),
+	}
+	cfg.AvatarDir = strings.TrimSpace(getenv("APP_AVATAR_DIR"))
+	if cfg.AvatarDir == "" {
+		cfg.AvatarDir = "data/avatars"
 	}
 
 	if cfg.Env == "" {

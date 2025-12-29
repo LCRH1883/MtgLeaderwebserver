@@ -12,6 +12,7 @@ type templates struct {
 	login    *template.Template
 	register *template.Template
 	home     *template.Template
+	profile  *template.Template
 	reset    *template.Template
 	errorT   *template.Template
 }
@@ -56,6 +57,16 @@ type homeViewData struct {
 	Notice   string
 }
 
+type profileViewData struct {
+	Title       string
+	User        domain.User
+	DisplayName string
+	AvatarURL   string
+	Initials    string
+	Error       string
+	Notice      string
+}
+
 type searchResult struct {
 	ID         string
 	Username   string
@@ -86,6 +97,10 @@ func parseTemplates() (*templates, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parse home: %w", err)
 	}
+	profile, err := parse("templates/layout.html", "templates/profile.html")
+	if err != nil {
+		return nil, fmt.Errorf("parse profile: %w", err)
+	}
 	resetT, err := parse("templates/reset.html")
 	if err != nil {
 		return nil, fmt.Errorf("parse reset: %w", err)
@@ -95,7 +110,7 @@ func parseTemplates() (*templates, error) {
 		return nil, fmt.Errorf("parse error: %w", err)
 	}
 
-	return &templates{login: login, register: register, home: home, reset: resetT, errorT: errorT}, nil
+	return &templates{login: login, register: register, home: home, profile: profile, reset: resetT, errorT: errorT}, nil
 }
 
 func (t *templates) renderLogin(w http.ResponseWriter, status int, data any) {
@@ -114,6 +129,12 @@ func (t *templates) renderHome(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
 	_ = t.home.ExecuteTemplate(w, "home.html", data)
+}
+
+func (t *templates) renderProfile(w http.ResponseWriter, status int, data any) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
+	_ = t.profile.ExecuteTemplate(w, "profile.html", data)
 }
 
 func (t *templates) renderReset(w http.ResponseWriter, status int, data any) {

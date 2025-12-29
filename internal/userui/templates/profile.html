@@ -1,0 +1,270 @@
+{{define "content"}}
+<section class="stack">
+  <div>
+    <p class="eyebrow">Your profile</p>
+    <h1>Set your name and avatar.</h1>
+    <p class="lead">Crop a 512x512 avatar and pick the name shown on your profile.</p>
+  </div>
+</section>
+
+{{if .Error}}
+  <div class="alert">{{.Error}}</div>
+{{end}}
+{{if .Notice}}
+  <div class="notice">{{.Notice}}</div>
+{{end}}
+
+<section class="profile-grid">
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Profile details</h2>
+      <div class="muted">Visible to your friends</div>
+    </div>
+    <div class="profile-card">
+      <div class="avatar-stack">
+        {{if .AvatarURL}}
+          <img class="avatar-preview" src="{{.AvatarURL}}" alt="Profile avatar" />
+        {{else}}
+          <div class="avatar-placeholder">{{.Initials}}</div>
+        {{end}}
+        <div class="muted small">Stored as 512x512 JPG</div>
+      </div>
+      <div class="profile-meta">
+        <div class="profile-field">
+          <div class="label">Username</div>
+          <div class="profile-value">@{{.User.Username}}</div>
+        </div>
+        <div class="profile-field">
+          <div class="label">Email</div>
+          {{if .User.Email}}
+            <div class="profile-value">{{.User.Email}}</div>
+          {{else}}
+            <div class="muted small">Not set</div>
+          {{end}}
+        </div>
+        <form class="profile-form" method="post" action="/app/profile">
+          <label class="label" for="display_name">Display name</label>
+          <input id="display_name" name="display_name" type="text" maxlength="48" placeholder="Your name" value="{{.DisplayName}}" />
+          <div class="hint">Shown on your profile. Leave blank to hide.</div>
+          <button type="submit">Save name</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Avatar cropper</h2>
+      <div class="muted">Drag and zoom</div>
+    </div>
+    <form id="avatar-form" class="avatar-form" method="post" action="/app/profile/avatar" enctype="multipart/form-data">
+      <label class="label" for="avatar-file">Choose image</label>
+      <input id="avatar-file" name="avatar" type="file" accept="image/*" />
+      <div class="cropper" id="cropper">
+        <canvas id="avatar-canvas" width="512" height="512"></canvas>
+        <div class="cropper-placeholder">Select a photo to begin</div>
+      </div>
+      <div class="crop-controls">
+        <label class="label" for="avatar-zoom">Zoom</label>
+        <input id="avatar-zoom" type="range" min="1" max="3" step="0.01" value="1" />
+      </div>
+      <div class="actions-row">
+        <button type="button" id="avatar-save">Save avatar</button>
+        <span class="muted small" id="avatar-status"></span>
+      </div>
+      <div class="hint">The server saves a lightweight 512x512 JPEG.</div>
+      <div class="alert" id="avatar-error" style="display:none;"></div>
+    </form>
+  </div>
+</section>
+
+<script>
+(() => {
+  const fileInput = document.getElementById("avatar-file");
+  const canvas = document.getElementById("avatar-canvas");
+  const zoom = document.getElementById("avatar-zoom");
+  const saveBtn = document.getElementById("avatar-save");
+  const errorEl = document.getElementById("avatar-error");
+  const statusEl = document.getElementById("avatar-status");
+  const cropper = document.getElementById("cropper");
+
+  if (!fileInput || !canvas || !zoom || !saveBtn) {
+    return;
+  }
+
+  const ctx = canvas.getContext("2d");
+  let img = null;
+  let baseScale = 1;
+  let scale = 1;
+  let offsetX = 0;
+  let offsetY = 0;
+  let dragging = false;
+  let lastX = 0;
+  let lastY = 0;
+
+  const setError = (msg) => {
+    if (!errorEl) {
+      return;
+    }
+    errorEl.textContent = msg || "";
+    errorEl.style.display = msg ? "block" : "none";
+  };
+
+  const setStatus = (msg) => {
+    if (statusEl) {
+      statusEl.textContent = msg || "";
+    }
+  };
+
+  const clampOffsets = () => {
+    const minX = canvas.width - img.width * scale;
+    const minY = canvas.height - img.height * scale;
+    if (offsetX > 0) {
+      offsetX = 0;
+    }
+    if (offsetY > 0) {
+      offsetY = 0;
+    }
+    if (offsetX < minX) {
+      offsetX = minX;
+    }
+    if (offsetY < minY) {
+      offsetY = minY;
+    }
+  };
+
+  const drawFrame = () => {
+    if (!img) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      return;
+    }
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, offsetX, offsetY, img.width * scale, img.height * scale);
+  };
+
+  const resetView = () => {
+    baseScale = Math.max(canvas.width / img.width, canvas.height / img.height);
+    scale = baseScale;
+    zoom.value = "1";
+    offsetX = (canvas.width - img.width * scale) / 2;
+    offsetY = (canvas.height - img.height * scale) / 2;
+    clampOffsets();
+    drawFrame();
+  };
+
+  fileInput.addEventListener("change", () => {
+    setError("");
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) {
+      img = null;
+      cropper.classList.remove("ready");
+      drawFrame();
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const image = new Image();
+      image.onload = () => {
+        img = image;
+        cropper.classList.add("ready");
+        resetView();
+      };
+      image.onerror = () => setError("That file could not be loaded.");
+      image.src = reader.result;
+    };
+    reader.onerror = () => setError("That file could not be read.");
+    reader.readAsDataURL(file);
+  });
+
+  canvas.addEventListener("pointerdown", (event) => {
+    if (!img) {
+      return;
+    }
+    dragging = true;
+    lastX = event.clientX;
+    lastY = event.clientY;
+    canvas.setPointerCapture(event.pointerId);
+  });
+  canvas.addEventListener("pointermove", (event) => {
+    if (!dragging || !img) {
+      return;
+    }
+    const dx = event.clientX - lastX;
+    const dy = event.clientY - lastY;
+    offsetX += dx;
+    offsetY += dy;
+    lastX = event.clientX;
+    lastY = event.clientY;
+    clampOffsets();
+    drawFrame();
+  });
+  const stopDrag = (event) => {
+    if (!dragging) {
+      return;
+    }
+    dragging = false;
+    canvas.releasePointerCapture(event.pointerId);
+  };
+  canvas.addEventListener("pointerup", stopDrag);
+  canvas.addEventListener("pointercancel", stopDrag);
+
+  zoom.addEventListener("input", () => {
+    if (!img) {
+      return;
+    }
+    const newScale = baseScale * parseFloat(zoom.value);
+    const ratio = newScale / scale;
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    offsetX = centerX - (centerX - offsetX) * ratio;
+    offsetY = centerY - (centerY - offsetY) * ratio;
+    scale = newScale;
+    clampOffsets();
+    drawFrame();
+  });
+
+  saveBtn.addEventListener("click", () => {
+    if (!img) {
+      setError("Select an image first.");
+      return;
+    }
+    setError("");
+    setStatus("Saving...");
+    saveBtn.disabled = true;
+
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        setError("Failed to export the avatar.");
+        saveBtn.disabled = false;
+        setStatus("");
+        return;
+      }
+      const formData = new FormData();
+      formData.append("avatar", blob, "avatar.jpg");
+      fetch("/app/profile/avatar", {
+        method: "POST",
+        body: formData,
+        credentials: "same-origin",
+      })
+        .then((resp) => {
+          if (resp.ok) {
+            window.location.href = "/app/profile?notice=avatar_saved";
+            return;
+          }
+          return resp.text().then((text) => {
+            throw new Error(text || "Avatar upload failed.");
+          });
+        })
+        .catch((err) => {
+          setError(err.message);
+        })
+        .finally(() => {
+          saveBtn.disabled = false;
+          setStatus("");
+        });
+    }, "image/jpeg", 0.85);
+  });
+})();
+</script>
+{{end}}
+{{define "profile.html"}}{{template "layout" .}}{{end}}

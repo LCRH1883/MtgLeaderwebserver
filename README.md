@@ -51,6 +51,7 @@ Set env vars (minimum for auth):
 - `APP_DB_DSN` (Postgres DSN)
 - `APP_COOKIE_SECRET` (recommend 32+ bytes)
 - `APP_PUBLIC_URL` (prod: `https://mtgleader.xyz`, local dev: `http://127.0.0.1:8080`)
+- `APP_AVATAR_DIR` (optional; defaults to `data/avatars`)
 - `email` is required for all users (login is email/password)
 - Optional external sign-in:
   - `GOOGLE_WEB_CLIENT_ID`
@@ -93,6 +94,10 @@ If you access the app over plain HTTP, `APP_PUBLIC_URL` must also be HTTP or log
 - User password reset:
   - `GET /app/reset`
   - `POST /app/reset`
+- User profile:
+  - `GET /app/profile`
+  - `POST /app/profile`
+  - `POST /app/profile/avatar`
 
 ### Example curl flow
 ```bash
@@ -112,6 +117,7 @@ curl -i -sS "$BASE_URL/v1/stats/summary" -b cookies.txt
 - systemd example: `deploy/systemd/mtg-leaderwebserver.service.example`
 - nginx example: `deploy/nginx/mtg-leaderwebserver.conf.example`
 - environment example: `deploy/mtgleaderwebserver.env.example`
+  - If `APP_AVATAR_DIR` points outside the working directory, update `ReadWritePaths` in the systemd unit and ensure the folder is writable by the service user.
 
 ### Reverse proxy (Nginx Proxy Manager or nginx)
 When proxying HTTPS -> HTTP (e.g. `mtgleader.xyz` -> `http://192.168.2.209:80`), you must:

@@ -26,14 +26,17 @@ func (s *UsersStore) CreateUser(ctx context.Context, email, username, passwordHa
 	const q = `
 		INSERT INTO users (email, username, password_hash)
 		VALUES ($1, $2, $3)
-		RETURNING id, email, username, status, created_at, updated_at, last_login_at
+		RETURNING id, email, username, status, created_at, updated_at, last_login_at, display_name, avatar_path, avatar_updated_at
 	`
 
 	var (
-		u           domain.User
-		idUUID      pgtype.UUID
-		emailText   pgtype.Text
-		lastLoginTS pgtype.Timestamptz
+		u              domain.User
+		idUUID         pgtype.UUID
+		emailText      pgtype.Text
+		lastLoginTS    pgtype.Timestamptz
+		displayName    pgtype.Text
+		avatarPathText pgtype.Text
+		avatarUpdated  pgtype.Timestamptz
 	)
 	err := s.pool.QueryRow(ctx, q, nullIfEmpty(email), username, passwordHash).Scan(
 		&idUUID,
@@ -43,6 +46,9 @@ func (s *UsersStore) CreateUser(ctx context.Context, email, username, passwordHa
 		&u.CreatedAt,
 		&u.UpdatedAt,
 		&lastLoginTS,
+		&displayName,
+		&avatarPathText,
+		&avatarUpdated,
 	)
 	if err != nil {
 		return domain.User{}, mapUserWriteError(err)
@@ -51,21 +57,27 @@ func (s *UsersStore) CreateUser(ctx context.Context, email, username, passwordHa
 	u.ID = uuidOrEmpty(idUUID)
 	u.Email = textOrEmpty(emailText)
 	u.LastLoginAt = timestamptzPtr(lastLoginTS)
+	u.DisplayName = textOrEmpty(displayName)
+	u.AvatarPath = textOrEmpty(avatarPathText)
+	u.AvatarUpdatedAt = timestamptzPtr(avatarUpdated)
 	return u, nil
 }
 
 func (s *UsersStore) GetUserByID(ctx context.Context, id string) (domain.User, error) {
 	const q = `
-		SELECT id, email, username, status, created_at, updated_at, last_login_at
+		SELECT id, email, username, status, created_at, updated_at, last_login_at, display_name, avatar_path, avatar_updated_at
 		FROM users
 		WHERE id = $1
 	`
 
 	var (
-		u           domain.User
-		idUUID      pgtype.UUID
-		emailText   pgtype.Text
-		lastLoginTS pgtype.Timestamptz
+		u              domain.User
+		idUUID         pgtype.UUID
+		emailText      pgtype.Text
+		lastLoginTS    pgtype.Timestamptz
+		displayName    pgtype.Text
+		avatarPathText pgtype.Text
+		avatarUpdated  pgtype.Timestamptz
 	)
 	err := s.pool.QueryRow(ctx, q, id).Scan(
 		&idUUID,
@@ -75,6 +87,9 @@ func (s *UsersStore) GetUserByID(ctx context.Context, id string) (domain.User, e
 		&u.CreatedAt,
 		&u.UpdatedAt,
 		&lastLoginTS,
+		&displayName,
+		&avatarPathText,
+		&avatarUpdated,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -86,12 +101,15 @@ func (s *UsersStore) GetUserByID(ctx context.Context, id string) (domain.User, e
 	u.ID = uuidOrEmpty(idUUID)
 	u.Email = textOrEmpty(emailText)
 	u.LastLoginAt = timestamptzPtr(lastLoginTS)
+	u.DisplayName = textOrEmpty(displayName)
+	u.AvatarPath = textOrEmpty(avatarPathText)
+	u.AvatarUpdatedAt = timestamptzPtr(avatarUpdated)
 	return u, nil
 }
 
 func (s *UsersStore) GetUserByLogin(ctx context.Context, login string) (domain.UserWithPassword, error) {
 	const q = `
-		SELECT id, email, username, password_hash, status, created_at, updated_at, last_login_at
+		SELECT id, email, username, password_hash, status, created_at, updated_at, last_login_at, display_name, avatar_path, avatar_updated_at
 		FROM users
 		WHERE username = $1 OR (email IS NOT NULL AND email = $1)
 		ORDER BY (username = $1) DESC
@@ -99,10 +117,13 @@ func (s *UsersStore) GetUserByLogin(ctx context.Context, login string) (domain.U
 	`
 
 	var (
-		u           domain.UserWithPassword
-		idUUID      pgtype.UUID
-		emailText   pgtype.Text
-		lastLoginTS pgtype.Timestamptz
+		u              domain.UserWithPassword
+		idUUID         pgtype.UUID
+		emailText      pgtype.Text
+		lastLoginTS    pgtype.Timestamptz
+		displayName    pgtype.Text
+		avatarPathText pgtype.Text
+		avatarUpdated  pgtype.Timestamptz
 	)
 	err := s.pool.QueryRow(ctx, q, login).Scan(
 		&idUUID,
@@ -113,6 +134,9 @@ func (s *UsersStore) GetUserByLogin(ctx context.Context, login string) (domain.U
 		&u.CreatedAt,
 		&u.UpdatedAt,
 		&lastLoginTS,
+		&displayName,
+		&avatarPathText,
+		&avatarUpdated,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -124,22 +148,28 @@ func (s *UsersStore) GetUserByLogin(ctx context.Context, login string) (domain.U
 	u.ID = uuidOrEmpty(idUUID)
 	u.Email = textOrEmpty(emailText)
 	u.LastLoginAt = timestamptzPtr(lastLoginTS)
+	u.DisplayName = textOrEmpty(displayName)
+	u.AvatarPath = textOrEmpty(avatarPathText)
+	u.AvatarUpdatedAt = timestamptzPtr(avatarUpdated)
 	return u, nil
 }
 
 func (s *UsersStore) GetUserByEmail(ctx context.Context, email string) (domain.UserWithPassword, error) {
 	const q = `
-		SELECT id, email, username, password_hash, status, created_at, updated_at, last_login_at
+		SELECT id, email, username, password_hash, status, created_at, updated_at, last_login_at, display_name, avatar_path, avatar_updated_at
 		FROM users
 		WHERE email = $1
 		LIMIT 1
 	`
 
 	var (
-		u           domain.UserWithPassword
-		idUUID      pgtype.UUID
-		emailText   pgtype.Text
-		lastLoginTS pgtype.Timestamptz
+		u              domain.UserWithPassword
+		idUUID         pgtype.UUID
+		emailText      pgtype.Text
+		lastLoginTS    pgtype.Timestamptz
+		displayName    pgtype.Text
+		avatarPathText pgtype.Text
+		avatarUpdated  pgtype.Timestamptz
 	)
 	err := s.pool.QueryRow(ctx, q, email).Scan(
 		&idUUID,
@@ -150,6 +180,9 @@ func (s *UsersStore) GetUserByEmail(ctx context.Context, email string) (domain.U
 		&u.CreatedAt,
 		&u.UpdatedAt,
 		&lastLoginTS,
+		&displayName,
+		&avatarPathText,
+		&avatarUpdated,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -161,6 +194,9 @@ func (s *UsersStore) GetUserByEmail(ctx context.Context, email string) (domain.U
 	u.ID = uuidOrEmpty(idUUID)
 	u.Email = textOrEmpty(emailText)
 	u.LastLoginAt = timestamptzPtr(lastLoginTS)
+	u.DisplayName = textOrEmpty(displayName)
+	u.AvatarPath = textOrEmpty(avatarPathText)
+	u.AvatarUpdatedAt = timestamptzPtr(avatarUpdated)
 	return u, nil
 }
 
@@ -193,10 +229,42 @@ func (s *UsersStore) SetPasswordHash(ctx context.Context, userID, passwordHash s
 	return nil
 }
 
+func (s *UsersStore) SetDisplayName(ctx context.Context, userID, displayName string) error {
+	const q = `
+		UPDATE users
+		SET display_name = $2, updated_at = now()
+		WHERE id = $1
+	`
+	tag, err := s.pool.Exec(ctx, q, userID, nullIfEmpty(displayName))
+	if err != nil {
+		return fmt.Errorf("set display name: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
+func (s *UsersStore) SetAvatar(ctx context.Context, userID, avatarPath string, updatedAt time.Time) error {
+	const q = `
+		UPDATE users
+		SET avatar_path = $2, avatar_updated_at = $3, updated_at = now()
+		WHERE id = $1
+	`
+	tag, err := s.pool.Exec(ctx, q, userID, nullIfEmpty(avatarPath), updatedAt)
+	if err != nil {
+		return fmt.Errorf("set avatar: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
 func (s *UsersStore) GetUserByExternalAccount(ctx context.Context, provider, providerID string) (domain.User, domain.ExternalAccount, error) {
 	const q = `
 		SELECT
-			u.id, u.email, u.username, u.status, u.created_at, u.updated_at, u.last_login_at,
+			u.id, u.email, u.username, u.status, u.created_at, u.updated_at, u.last_login_at, u.display_name, u.avatar_path, u.avatar_updated_at,
 			ea.id, ea.user_id, ea.provider, ea.provider_id, ea.email, ea.created_at
 		FROM user_external_accounts ea
 		JOIN users u ON u.id = ea.user_id
@@ -205,14 +273,17 @@ func (s *UsersStore) GetUserByExternalAccount(ctx context.Context, provider, pro
 	`
 
 	var (
-		u           domain.User
-		ext         domain.ExternalAccount
-		userIDUUID  pgtype.UUID
-		emailText   pgtype.Text
-		lastLoginTS pgtype.Timestamptz
-		extIDUUID   pgtype.UUID
-		extUserUUID pgtype.UUID
-		extEmail    pgtype.Text
+		u              domain.User
+		ext            domain.ExternalAccount
+		userIDUUID     pgtype.UUID
+		emailText      pgtype.Text
+		lastLoginTS    pgtype.Timestamptz
+		displayName    pgtype.Text
+		avatarPathText pgtype.Text
+		avatarUpdated  pgtype.Timestamptz
+		extIDUUID      pgtype.UUID
+		extUserUUID    pgtype.UUID
+		extEmail       pgtype.Text
 	)
 	err := s.pool.QueryRow(ctx, q, provider, providerID).Scan(
 		&userIDUUID,
@@ -222,6 +293,9 @@ func (s *UsersStore) GetUserByExternalAccount(ctx context.Context, provider, pro
 		&u.CreatedAt,
 		&u.UpdatedAt,
 		&lastLoginTS,
+		&displayName,
+		&avatarPathText,
+		&avatarUpdated,
 		&extIDUUID,
 		&extUserUUID,
 		&ext.Provider,
@@ -239,6 +313,9 @@ func (s *UsersStore) GetUserByExternalAccount(ctx context.Context, provider, pro
 	u.ID = uuidOrEmpty(userIDUUID)
 	u.Email = textOrEmpty(emailText)
 	u.LastLoginAt = timestamptzPtr(lastLoginTS)
+	u.DisplayName = textOrEmpty(displayName)
+	u.AvatarPath = textOrEmpty(avatarPathText)
+	u.AvatarUpdatedAt = timestamptzPtr(avatarUpdated)
 
 	ext.ID = uuidOrEmpty(extIDUUID)
 	ext.UserID = uuidOrEmpty(extUserUUID)
@@ -261,14 +338,17 @@ func (s *UsersStore) CreateUserWithExternalAccount(ctx context.Context, provider
 	const userQ = `
 		INSERT INTO users (email, username, password_hash)
 		VALUES ($1, $2, $3)
-		RETURNING id, email, username, status, created_at, updated_at, last_login_at
+		RETURNING id, email, username, status, created_at, updated_at, last_login_at, display_name, avatar_path, avatar_updated_at
 	`
 
 	var (
-		u           domain.User
-		userIDUUID  pgtype.UUID
-		emailText   pgtype.Text
-		lastLoginTS pgtype.Timestamptz
+		u              domain.User
+		userIDUUID     pgtype.UUID
+		emailText      pgtype.Text
+		lastLoginTS    pgtype.Timestamptz
+		displayName    pgtype.Text
+		avatarPathText pgtype.Text
+		avatarUpdated  pgtype.Timestamptz
 	)
 	err = tx.QueryRow(ctx, userQ, email, username, passwordHash).Scan(
 		&userIDUUID,
@@ -278,6 +358,9 @@ func (s *UsersStore) CreateUserWithExternalAccount(ctx context.Context, provider
 		&u.CreatedAt,
 		&u.UpdatedAt,
 		&lastLoginTS,
+		&displayName,
+		&avatarPathText,
+		&avatarUpdated,
 	)
 	if err != nil {
 		return domain.User{}, domain.ExternalAccount{}, mapUserWriteError(err)
@@ -305,6 +388,9 @@ func (s *UsersStore) CreateUserWithExternalAccount(ctx context.Context, provider
 	u.ID = uuidOrEmpty(userIDUUID)
 	u.Email = textOrEmpty(emailText)
 	u.LastLoginAt = timestamptzPtr(lastLoginTS)
+	u.DisplayName = textOrEmpty(displayName)
+	u.AvatarPath = textOrEmpty(avatarPathText)
+	u.AvatarUpdatedAt = timestamptzPtr(avatarUpdated)
 
 	ext.ID = uuidOrEmpty(extIDUUID)
 	ext.UserID = u.ID

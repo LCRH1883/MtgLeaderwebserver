@@ -33,6 +33,7 @@
 ## Configuration & Security Tips
 - Use `.env.example` as a starting point and set required env vars: `APP_ADDR`, `APP_DB_DSN`, `APP_COOKIE_SECRET`.
 - Admin UI access is gated by `APP_ADMIN_EMAILS`; keep this list tight in shared environments.
+- User avatars are stored on disk; set `APP_AVATAR_DIR` to a persistent path (defaults to `data/avatars`).
 
 ## Postgres Setup (Required)
 - Create a dedicated DB role and database for this app:
