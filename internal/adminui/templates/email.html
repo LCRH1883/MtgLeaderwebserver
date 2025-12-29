@@ -46,7 +46,15 @@
     <input name="alias_emails" type="text" value="{{.AliasEmails}}" placeholder="support@mtgleader.xyz, hello@mtgleader.xyz" />
     <div class="hint">Comma-separated. These can be used as the From address.</div>
   </label>
-  <button type="submit">Save SMTP settings</button>
+  <label>
+    <div class="label">Test Email</div>
+    <input name="test_email" type="email" value="{{.TestEmail}}" placeholder="you@example.com" />
+    <div class="hint">Send a test email using the settings above.</div>
+  </label>
+  <div class="form-actions">
+    <button type="submit" name="action" value="save">Save SMTP settings</button>
+    <button class="ghost" type="submit" name="action" value="test">Send test email</button>
+  </div>
 </form>
 {{end}}
 {{define "email.html"}}{{template "layout" .}}{{end}}

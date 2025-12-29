@@ -380,6 +380,15 @@ button:active{
   grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
   gap:16px;
 }
+.form-actions{
+  display:flex;
+  gap:12px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+.form-actions button{
+  width:auto;
+}
 .cardlink{
   display:block;
   background:var(--card);

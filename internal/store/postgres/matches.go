@@ -321,12 +321,12 @@ func (s *MatchesStore) StatsSummary(ctx context.Context, userID string) (domain.
 	}
 
 	return domain.StatsSummary{
-		MatchesPlayed:  played,
-		Wins:           wins,
-		Losses:         losses,
-		AvgTurnSeconds: avgTurn,
-		ByFormat:       byFormat,
-		MostOftenBeat:  mostBeat,
+		MatchesPlayed:     played,
+		Wins:              wins,
+		Losses:            losses,
+		AvgTurnSeconds:    avgTurn,
+		ByFormat:          byFormat,
+		MostOftenBeat:     mostBeat,
 		MostOftenBeatsYou: mostBeats,
 	}, nil
 }

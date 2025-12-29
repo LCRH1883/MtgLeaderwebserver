@@ -72,6 +72,10 @@ func (s *AdminSettingsStore) UpsertSMTPSettings(ctx context.Context, settings do
 			updated_at = now()
 	`
 
+	aliases := settings.AliasEmails
+	if aliases == nil {
+		aliases = []string{}
+	}
 	_, err := s.pool.Exec(ctx, q,
 		settings.Host,
 		settings.Port,
@@ -80,7 +84,7 @@ func (s *AdminSettingsStore) UpsertSMTPSettings(ctx context.Context, settings do
 		settings.TLSMode,
 		settings.FromName,
 		settings.FromEmail,
-		pgtype.FlatArray[string](settings.AliasEmails),
+		pgtype.FlatArray[string](aliases),
 	)
 	if err != nil {
 		return fmt.Errorf("upsert smtp settings: %w", err)

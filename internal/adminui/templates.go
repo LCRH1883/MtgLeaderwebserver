@@ -50,6 +50,7 @@ type smtpViewData struct {
 	FromEmail   string
 	AliasEmails string
 	HasPassword bool
+	TestEmail   string
 }
 
 type userRow struct {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"MtgLeaderwebserver/internal/auth"
@@ -45,51 +46,70 @@ func NewRouter(opts RouterOpts) http.Handler {
 		loginLimiter: newLoginLimiter(),
 	}
 
-	mux := http.NewServeMux()
+	publicMux := http.NewServeMux()
+	apiMux := http.NewServeMux()
 
-	mux.HandleFunc("GET /healthz", api.handleHealthz)
+	publicMux.HandleFunc("GET /", api.handleHome)
+	publicMux.HandleFunc("GET /privacy", api.handlePrivacyWeb)
+	publicMux.HandleFunc("GET /privacy/android", api.handlePrivacyAndroid)
+	publicMux.HandleFunc("GET /healthz", api.handleHealthz)
 
 	if api.authSvc == nil {
-		mux.HandleFunc("POST /v1/auth/register", handleNotImplemented)
-		mux.HandleFunc("POST /v1/auth/login", handleNotImplemented)
-		mux.HandleFunc("POST /v1/auth/google", handleNotImplemented)
-		mux.HandleFunc("POST /v1/auth/apple", handleNotImplemented)
-		mux.HandleFunc("POST /v1/auth/logout", handleNotImplemented)
-		mux.HandleFunc("GET /v1/users/me", handleNotImplemented)
+		apiMux.HandleFunc("POST /v1/auth/register", handleNotImplemented)
+		apiMux.HandleFunc("POST /v1/auth/login", handleNotImplemented)
+		apiMux.HandleFunc("POST /v1/auth/google", handleNotImplemented)
+		apiMux.HandleFunc("POST /v1/auth/apple", handleNotImplemented)
+		apiMux.HandleFunc("POST /v1/auth/logout", handleNotImplemented)
+		apiMux.HandleFunc("GET /v1/users/me", handleNotImplemented)
 	} else {
-		mux.HandleFunc("POST /v1/auth/register", api.handleAuthRegister)
-		mux.HandleFunc("POST /v1/auth/login", api.handleAuthLogin)
-		mux.HandleFunc("POST /v1/auth/google", api.handleAuthLoginGoogle)
-		mux.HandleFunc("POST /v1/auth/apple", api.handleAuthLoginApple)
-		mux.HandleFunc("POST /v1/auth/logout", api.requireAuth(api.handleAuthLogout))
-		mux.HandleFunc("GET /v1/users/me", api.requireAuth(api.handleUsersMe))
+		apiMux.HandleFunc("POST /v1/auth/register", api.handleAuthRegister)
+		apiMux.HandleFunc("POST /v1/auth/login", api.handleAuthLogin)
+		apiMux.HandleFunc("POST /v1/auth/google", api.handleAuthLoginGoogle)
+		apiMux.HandleFunc("POST /v1/auth/apple", api.handleAuthLoginApple)
+		apiMux.HandleFunc("POST /v1/auth/logout", api.requireAuth(api.handleAuthLogout))
+		apiMux.HandleFunc("GET /v1/users/me", api.requireAuth(api.handleUsersMe))
 		if api.usersSvc != nil {
-			mux.HandleFunc("GET /v1/users/search", api.requireAuth(api.handleUsersSearch))
+			apiMux.HandleFunc("GET /v1/users/search", api.requireAuth(api.handleUsersSearch))
 		}
 
 		if api.friendsSvc != nil {
-			mux.HandleFunc("GET /v1/friends", api.requireAuth(api.handleFriendsList))
-			mux.HandleFunc("POST /v1/friends/requests", api.requireAuth(api.handleFriendsCreateRequest))
-			mux.HandleFunc("POST /v1/friends/requests/{id}/accept", api.requireAuth(api.handleFriendsAccept))
-			mux.HandleFunc("POST /v1/friends/requests/{id}/decline", api.requireAuth(api.handleFriendsDecline))
-			mux.HandleFunc("POST /v1/friends/requests/{id}/cancel", api.requireAuth(api.handleFriendsCancel))
+			apiMux.HandleFunc("GET /v1/friends", api.requireAuth(api.handleFriendsList))
+			apiMux.HandleFunc("POST /v1/friends/requests", api.requireAuth(api.handleFriendsCreateRequest))
+			apiMux.HandleFunc("POST /v1/friends/requests/{id}/accept", api.requireAuth(api.handleFriendsAccept))
+			apiMux.HandleFunc("POST /v1/friends/requests/{id}/decline", api.requireAuth(api.handleFriendsDecline))
+			apiMux.HandleFunc("POST /v1/friends/requests/{id}/cancel", api.requireAuth(api.handleFriendsCancel))
 		}
 
 		if api.matchSvc != nil {
-			mux.HandleFunc("POST /v1/matches", api.requireAuth(api.handleMatchesCreate))
-			mux.HandleFunc("GET /v1/matches", api.requireAuth(api.handleMatchesList))
-			mux.HandleFunc("GET /v1/matches/{id}", api.requireAuth(api.handleMatchesGet))
-			mux.HandleFunc("GET /v1/stats/summary", api.requireAuth(api.handleStatsSummary))
-			mux.HandleFunc("GET /v1/stats/head-to-head/{id}", api.requireAuth(api.handleStatsHeadToHead))
+			apiMux.HandleFunc("POST /v1/matches", api.requireAuth(api.handleMatchesCreate))
+			apiMux.HandleFunc("GET /v1/matches", api.requireAuth(api.handleMatchesList))
+			apiMux.HandleFunc("GET /v1/matches/{id}", api.requireAuth(api.handleMatchesGet))
+			apiMux.HandleFunc("GET /v1/stats/summary", api.requireAuth(api.handleStatsSummary))
+			apiMux.HandleFunc("GET /v1/stats/head-to-head/{id}", api.requireAuth(api.handleStatsHeadToHead))
 			if api.friendsSvc != nil {
-				mux.HandleFunc("GET /v1/stats/friends", api.requireAuth(api.handleStatsFriends))
+				apiMux.HandleFunc("GET /v1/stats/friends", api.requireAuth(api.handleStatsFriends))
 			}
 		}
 	}
 
-	mux.Handle("/v1/", http.HandlerFunc(handleV1NotFound))
+	apiHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h, pattern := apiMux.Handler(r)
+		if pattern == "" {
+			handleV1NotFound(w, r)
+			return
+		}
+		h.ServeHTTP(w, r)
+	})
 
-	var h http.Handler = mux
+	root := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/v1/") || r.URL.Path == "/v1" {
+			apiHandler.ServeHTTP(w, r)
+			return
+		}
+		publicMux.ServeHTTP(w, r)
+	})
+
+	var h http.Handler = root
 	h = RequestLogger(logger)(h)
 	h = RequestID()(h)
 	h = Recoverer(logger, opts.IsProd)(h)

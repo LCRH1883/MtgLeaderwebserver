@@ -11,13 +11,13 @@ import (
 )
 
 type createMatchRequest struct {
-	PlayerIDs            []string                 `json:"player_ids"`
-	WinnerID             string                   `json:"winner_id"`
-	PlayedAt             string                   `json:"played_at"`
-	Format               string                   `json:"format"`
-	TotalDurationSeconds int                      `json:"total_duration_seconds"`
-	TurnCount            int                      `json:"turn_count"`
-	ClientRef            string                   `json:"client_ref"`
+	PlayerIDs            []string                  `json:"player_ids"`
+	WinnerID             string                    `json:"winner_id"`
+	PlayedAt             string                    `json:"played_at"`
+	Format               string                    `json:"format"`
+	TotalDurationSeconds int                       `json:"total_duration_seconds"`
+	TurnCount            int                       `json:"turn_count"`
+	ClientRef            string                    `json:"client_ref"`
 	Results              []domain.MatchResultInput `json:"results"`
 }
 

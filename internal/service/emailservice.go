@@ -68,3 +68,33 @@ func (s *EmailService) SendPasswordReset(ctx context.Context, fromEmail, toEmail
 		TextBody:  body,
 	})
 }
+
+func (s *EmailService) SendTestEmail(ctx context.Context, settings domain.SMTPSettings, toEmail string) error {
+	if s.Settings == nil {
+		return fmt.Errorf("smtp settings unavailable")
+	}
+	toEmail = strings.TrimSpace(strings.ToLower(toEmail))
+	if toEmail == "" {
+		return fmt.Errorf("test email required")
+	}
+	subject := "MTG Leader SMTP test"
+	body := strings.Join([]string{
+		"This is a test email from MTG Leader.",
+		"",
+		"If you received this, your SMTP settings are working.",
+	}, "\n")
+
+	return email.SendSMTP(email.SMTPSettings{
+		Host:     settings.Host,
+		Port:     settings.Port,
+		Username: settings.Username,
+		Password: settings.Password,
+		TLSMode:  settings.TLSMode,
+	}, email.Message{
+		FromName:  settings.FromName,
+		FromEmail: settings.FromEmail,
+		ToEmail:   toEmail,
+		Subject:   subject,
+		TextBody:  body,
+	})
+}

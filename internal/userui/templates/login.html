@@ -8,9 +8,18 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/app/static/app.css" />
+    <link rel="stylesheet" href="/app/static/app.css?v=7" />
   </head>
   <body class="auth-page">
+    <header class="auth-header">
+      <a class="auth-brand" href="/">
+        <span class="brand-mark">MTG</span>
+        <span>
+          <span class="brand-title">MTG Leader</span>
+          <span class="brand-sub">Magic: The Gathering playgroup toolkit</span>
+        </span>
+      </a>
+    </header>
     <main class="auth-shell">
       <section class="auth-card stack">
         <div>
@@ -49,6 +58,19 @@
         </div>
       </aside>
     </main>
+    <script>
+      (() => {
+        const root = document.documentElement;
+        const storageKey = "mtg-theme";
+        try {
+          const stored = localStorage.getItem(storageKey);
+          if (stored === "dark" || stored === "light") {
+            root.setAttribute("data-theme", stored);
+            document.body.setAttribute("data-theme", stored);
+          }
+        } catch (err) {}
+      })();
+    </script>
   </body>
 </html>
 {{end}}

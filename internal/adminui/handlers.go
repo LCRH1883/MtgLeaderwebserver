@@ -2,6 +2,7 @@ package adminui
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"net/url"
@@ -218,6 +219,11 @@ func (a *app) handleEmailPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	action := strings.TrimSpace(r.FormValue("action"))
+	if action == "" {
+		action = "save"
+	}
+
 	host := strings.TrimSpace(r.FormValue("host"))
 	portRaw := strings.TrimSpace(r.FormValue("port"))
 	username := strings.TrimSpace(r.FormValue("username"))
@@ -226,52 +232,63 @@ func (a *app) handleEmailPost(w http.ResponseWriter, r *http.Request) {
 	fromName := strings.TrimSpace(r.FormValue("from_name"))
 	fromEmail := normalizeEmail(r.FormValue("from_email"))
 	aliasRaw := strings.TrimSpace(r.FormValue("alias_emails"))
+	testEmail := normalizeEmail(r.FormValue("test_email"))
+
+	view := smtpViewData{
+		Title:       "Email Settings",
+		Host:        host,
+		Username:    username,
+		TLSMode:     tlsMode,
+		FromName:    fromName,
+		FromEmail:   fromEmail,
+		AliasEmails: aliasRaw,
+		HasPassword: password != "",
+		TestEmail:   testEmail,
+	}
 
 	port, err := strconv.Atoi(portRaw)
 	if err != nil || port < 1 || port > 65535 {
-		a.templates.renderEmail(w, http.StatusBadRequest, smtpViewData{
-			Title: "Email Settings",
-			Error: "SMTP port must be between 1 and 65535",
-		})
+		view.Error = "SMTP port must be between 1 and 65535"
+		a.templates.renderEmail(w, http.StatusBadRequest, view)
 		return
 	}
+	view.Port = port
 	if host == "" || username == "" || fromName == "" || !validEmail(fromEmail) {
-		a.templates.renderEmail(w, http.StatusBadRequest, smtpViewData{
-			Title: "Email Settings",
-			Error: "Host, username, from name, and from email are required",
-		})
+		view.Error = "Host, username, from name, and from email are required"
+		a.templates.renderEmail(w, http.StatusBadRequest, view)
 		return
 	}
 	switch tlsMode {
 	case "starttls", "tls", "none":
 	default:
-		a.templates.renderEmail(w, http.StatusBadRequest, smtpViewData{
-			Title: "Email Settings",
-			Error: "TLS mode must be starttls, tls, or none",
-		})
+		view.Error = "TLS mode must be starttls, tls, or none"
+		a.templates.renderEmail(w, http.StatusBadRequest, view)
 		return
 	}
 
 	aliases, aliasErr := parseAliasEmails(aliasRaw)
 	if aliasErr != nil {
-		a.templates.renderEmail(w, http.StatusBadRequest, smtpViewData{
-			Title: "Email Settings",
-			Error: aliasErr.Error(),
-		})
+		view.Error = aliasErr.Error()
+		a.templates.renderEmail(w, http.StatusBadRequest, view)
 		return
 	}
 
 	existing, ok, err := a.emailSvc.GetSMTPSettings(r.Context())
 	if err != nil {
 		a.logger.Error("adminui: get smtp settings", "err", err)
-		a.templates.renderEmail(w, http.StatusInternalServerError, smtpViewData{Title: "Email Settings", Error: "Failed to load SMTP settings"})
+		view.Error = "Failed to load SMTP settings"
+		a.templates.renderEmail(w, http.StatusInternalServerError, view)
 		return
 	}
 	if password == "" && ok {
 		password = existing.Password
 	}
+	if ok && existing.Password != "" {
+		view.HasPassword = true
+	}
 	if password == "" {
-		a.templates.renderEmail(w, http.StatusBadRequest, smtpViewData{Title: "Email Settings", Error: "SMTP password is required"})
+		view.Error = "SMTP password is required"
+		a.templates.renderEmail(w, http.StatusBadRequest, view)
 		return
 	}
 
@@ -287,22 +304,32 @@ func (a *app) handleEmailPost(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := a.emailSvc.SaveSMTPSettings(r.Context(), settings); err != nil {
 		a.logger.Error("adminui: save smtp settings", "err", err)
-		a.templates.renderEmail(w, http.StatusInternalServerError, smtpViewData{Title: "Email Settings", Error: "Failed to save SMTP settings"})
+		view.Error = "Failed to save SMTP settings"
+		a.templates.renderEmail(w, http.StatusInternalServerError, view)
 		return
 	}
 
-	a.templates.renderEmail(w, http.StatusOK, smtpViewData{
-		Title:       "Email Settings",
-		Success:     "SMTP settings saved",
-		Host:        host,
-		Port:        port,
-		Username:    username,
-		TLSMode:     tlsMode,
-		FromName:    fromName,
-		FromEmail:   fromEmail,
-		AliasEmails: strings.Join(aliases, ", "),
-		HasPassword: true,
-	})
+	if action == "test" {
+		if !validEmail(testEmail) {
+			view.Error = "Enter a valid test email address"
+			a.templates.renderEmail(w, http.StatusBadRequest, view)
+			return
+		}
+		if err := a.emailSvc.SendTestEmail(r.Context(), settings, testEmail); err != nil {
+			a.logger.Error("adminui: send smtp test", "err", err)
+			view.Error = fmt.Sprintf("Failed to send test email: %v", err)
+			view.HasPassword = true
+			a.templates.renderEmail(w, http.StatusInternalServerError, view)
+			return
+		}
+		view.Success = fmt.Sprintf("Test email sent to %s", testEmail)
+	} else {
+		view.Success = "SMTP settings saved"
+	}
+
+	view.AliasEmails = strings.Join(aliases, ", ")
+	view.HasPassword = true
+	a.templates.renderEmail(w, http.StatusOK, view)
 }
 
 func (a *app) handleUserPasswordReset(w http.ResponseWriter, r *http.Request) {

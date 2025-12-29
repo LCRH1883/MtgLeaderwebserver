@@ -21,7 +21,7 @@ func validEmail(s string) bool {
 func parseAliasEmails(raw string) ([]string, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
-		return nil, nil
+		return []string{}, nil
 	}
 	parts := strings.Split(raw, ",")
 	out := make([]string, 0, len(parts))
