@@ -1,0 +1,55 @@
+{{define "reset.html"}}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>{{.Title}}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/app/static/app.css" />
+  </head>
+  <body class="auth-page">
+    <main class="auth-shell">
+      <section class="auth-card stack">
+        <div>
+          <p class="eyebrow">Reset access</p>
+          <h1>Set a new password.</h1>
+          <p class="lead">Choose a strong password to keep your account secure.</p>
+        </div>
+        {{if .Error}}
+          <div class="alert">{{.Error}}</div>
+        {{end}}
+        {{if .Notice}}
+          <div class="notice">{{.Notice}}</div>
+        {{end}}
+        <form method="post" action="/app/reset" class="stack">
+          <input type="hidden" name="token" value="{{.Token}}" />
+          <label class="label" for="password">New password</label>
+          <input id="password" name="password" type="password" autocomplete="new-password" required />
+          <div class="hint">Minimum 12 characters.</div>
+          <label class="label" for="confirm">Confirm password</label>
+          <input id="confirm" name="confirm" type="password" autocomplete="new-password" required />
+          <button type="submit">Update password</button>
+        </form>
+        <div class="muted small">Back to <a class="inline-link" href="/app/login">sign in</a>.</div>
+      </section>
+      <aside class="auth-panel">
+        <div class="auth-panel-inner stack">
+          <div>
+            <p class="eyebrow">Security</p>
+            <h2>One-time reset link.</h2>
+            <p class="lead">Reset links are single-use and expire after a short window.</p>
+          </div>
+          <ul class="feature-list">
+            <li><span class="feature-tag">01</span>Links expire automatically.</li>
+            <li><span class="feature-tag">02</span>Passwords are encrypted at rest.</li>
+            <li><span class="feature-tag">03</span>Sign in again after update.</li>
+          </ul>
+        </div>
+      </aside>
+    </main>
+  </body>
+</html>
+{{end}}

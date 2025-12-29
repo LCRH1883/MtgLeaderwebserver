@@ -1,0 +1,52 @@
+{{define "content"}}
+<h1>Email Settings</h1>
+{{if .Error}}<div class="alert">{{.Error}}</div>{{end}}
+{{if .Success}}<div class="notice">{{.Success}}</div>{{end}}
+<form method="post" action="/admin/email" class="card stack">
+  <div class="grid">
+    <label>
+      <div class="label">SMTP Host</div>
+      <input name="host" type="text" required value="{{.Host}}" placeholder="smtp.example.com" />
+    </label>
+    <label>
+      <div class="label">SMTP Port</div>
+      <input name="port" type="number" min="1" max="65535" required value="{{.Port}}" placeholder="587" />
+    </label>
+  </div>
+  <div class="grid">
+    <label>
+      <div class="label">SMTP Username</div>
+      <input name="username" type="text" required value="{{.Username}}" />
+    </label>
+    <label>
+      <div class="label">SMTP Password</div>
+      <input name="password" type="password" placeholder="{{if .HasPassword}}(leave blank to keep){{end}}" />
+    </label>
+  </div>
+  <label>
+    <div class="label">TLS Mode</div>
+    <select name="tls_mode">
+      <option value="starttls" {{if eq .TLSMode "starttls"}}selected{{end}}>STARTTLS (587)</option>
+      <option value="tls" {{if eq .TLSMode "tls"}}selected{{end}}>TLS (465)</option>
+      <option value="none" {{if eq .TLSMode "none"}}selected{{end}}>None (insecure)</option>
+    </select>
+  </label>
+  <div class="grid">
+    <label>
+      <div class="label">From Name</div>
+      <input name="from_name" type="text" required value="{{.FromName}}" placeholder="MTG Friends" />
+    </label>
+    <label>
+      <div class="label">From Email</div>
+      <input name="from_email" type="email" required value="{{.FromEmail}}" placeholder="no-reply@mtgleader.xyz" />
+    </label>
+  </div>
+  <label>
+    <div class="label">Alias Emails</div>
+    <input name="alias_emails" type="text" value="{{.AliasEmails}}" placeholder="support@mtgleader.xyz, hello@mtgleader.xyz" />
+    <div class="hint">Comma-separated. These can be used as the From address.</div>
+  </label>
+  <button type="submit">Save SMTP settings</button>
+</form>
+{{end}}
+{{define "email.html"}}{{template "layout" .}}{{end}}

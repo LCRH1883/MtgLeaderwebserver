@@ -37,6 +37,8 @@ func main() {
 		matchSvc   *service.MatchService
 		usersSvc   *service.UsersService
 		adminSvc   *service.AdminService
+		resetSvc   *service.PasswordResetService
+		emailSvc   *service.EmailService
 		dbPing     func(context.Context) error
 	)
 
@@ -54,6 +56,8 @@ func main() {
 		matches := postgres.NewMatchesStore(pgPool)
 		userSearch := postgres.NewUserSearchStore(pgPool)
 		adminUsers := postgres.NewAdminUsersStore(pgPool)
+		adminSettings := postgres.NewAdminSettingsStore(pgPool)
+		passwordResets := postgres.NewPasswordResetStore(pgPool)
 
 		if err := bootstrapAdminUser(context.Background(), logger, users, cfg.AdminBootstrapEmail, cfg.AdminBootstrapUsername, cfg.AdminBootstrapPassword); err != nil {
 			logger.Error("bootstrap admin failed", "err", err)
@@ -76,10 +80,12 @@ func main() {
 			Friends: friendsSvc,
 		}
 		usersSvc = &service.UsersService{Store: userSearch}
-		adminSvc = &service.AdminService{
-			Users:     adminUsers,
-			Passwords: users,
+		adminSvc = &service.AdminService{Users: adminUsers}
+		resetSvc = &service.PasswordResetService{
+			Store: passwordResets,
+			Users: users,
 		}
+		emailSvc = &service.EmailService{Settings: adminSettings}
 		dbPing = pgPool.Ping
 	}
 
@@ -105,10 +111,13 @@ func main() {
 			Logger:       logger,
 			Auth:         authSvc,
 			Admin:        adminSvc,
+			Reset:        resetSvc,
+			Email:        emailSvc,
 			CookieCodec:  auth.NewCookieCodec([]byte(cfg.CookieSecret)),
 			CookieSecure: cfg.CookieSecure(),
 			SessionTTL:   cfg.SessionTTL,
 			AdminEmails:  cfg.AdminEmails,
+			PublicURL:    cfg.PublicURL,
 		})
 		root.Handle("/admin", adminRouter)
 		root.Handle("/admin/", adminRouter)
@@ -129,6 +138,7 @@ func main() {
 		Auth:         authSvc,
 		Friends:      friendsSvc,
 		Users:        usersSvc,
+		Reset:        resetSvc,
 		CookieCodec:  auth.NewCookieCodec([]byte(cfg.CookieSecret)),
 		CookieSecure: cfg.CookieSecure(),
 		SessionTTL:   cfg.SessionTTL,

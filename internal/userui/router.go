@@ -17,6 +17,7 @@ type Opts struct {
 	Auth         *service.AuthService
 	Friends      *service.FriendsService
 	Users        *service.UsersService
+	Reset        *service.PasswordResetService
 	CookieCodec  auth.CookieCodec
 	CookieSecure bool
 	SessionTTL   time.Duration
@@ -37,6 +38,7 @@ func New(opts Opts) http.Handler {
 		authSvc:      opts.Auth,
 		friendsSvc:   opts.Friends,
 		usersSvc:     opts.Users,
+		resetSvc:     opts.Reset,
 		cookieCodec:  opts.CookieCodec,
 		cookieSecure: opts.CookieSecure,
 		sessionTTL:   opts.SessionTTL,
@@ -58,6 +60,8 @@ func New(opts Opts) http.Handler {
 	mux.HandleFunc("POST /app/login", app.handleLoginPost)
 	mux.HandleFunc("GET /app/register", app.handleRegisterGet)
 	mux.HandleFunc("POST /app/register", app.handleRegisterPost)
+	mux.HandleFunc("GET /app/reset", app.handleResetGet)
+	mux.HandleFunc("POST /app/reset", app.handleResetPost)
 	mux.HandleFunc("POST /app/logout", app.handleLogoutPost)
 	mux.HandleFunc("POST /app/friends/requests", app.requireAuth(app.handleFriendRequest))
 	mux.HandleFunc("POST /app/friends/requests/accept", app.requireAuth(app.handleFriendAccept))
@@ -84,6 +88,7 @@ type app struct {
 	authSvc    *service.AuthService
 	friendsSvc *service.FriendsService
 	usersSvc   *service.UsersService
+	resetSvc   *service.PasswordResetService
 
 	cookieCodec  auth.CookieCodec
 	cookieSecure bool

@@ -18,6 +18,9 @@
           <h1>Sign in to MTG Friends.</h1>
           <p class="lead">Use your email to manage friends, matches, and requests.</p>
         </div>
+        {{if .Notice}}
+          <div class="notice">{{.Notice}}</div>
+        {{end}}
         {{if .Error}}
           <div class="alert">{{.Error}}</div>
         {{end}}

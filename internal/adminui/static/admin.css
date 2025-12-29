@@ -56,6 +56,10 @@ a{
 a:hover{
   color:var(--accent);
 }
+.inline-link{
+  color:var(--accent-2);
+  font-weight:600;
+}
 .container{
   max-width:980px;
   margin:0 auto;
@@ -139,6 +143,9 @@ a:hover{
 .search-row input{
   flex:1;
   min-width:220px;
+}
+.search-row button{
+  width:auto;
 }
 .stack > *{
   opacity:1;
@@ -271,6 +278,26 @@ a:hover{
   font-weight:600;
 }
 label{display:block;margin:10px 0}
+.radio-row{
+  display:flex;
+  gap:10px;
+  align-items:center;
+}
+.radio-row input[type="radio"]{
+  width:16px !important;
+  height:16px !important;
+  flex:0 0 16px;
+  padding:0;
+  border:0;
+  background:transparent;
+  box-shadow:none;
+  margin:0;
+  accent-color:var(--accent-2);
+}
+.radio-row span{
+  display:block;
+  line-height:1.3;
+}
 .label{
   font-size:12px;
   color:var(--muted);
@@ -278,7 +305,7 @@ label{display:block;margin:10px 0}
   font-weight:600;
   letter-spacing:0.4px;
 }
-input{
+input:not([type="radio"]):not([type="checkbox"]){
   width:100%;
   padding:10px 12px;
   border-radius:10px;
@@ -287,7 +314,15 @@ input{
   color:var(--ink);
   transition:border-color 0.2s ease,box-shadow 0.2s ease;
 }
-input:focus{
+select{
+  width:100%;
+  padding:10px 12px;
+  border-radius:10px;
+  border:1px solid var(--line);
+  background:#0b1118;
+  color:var(--ink);
+}
+input:not([type="radio"]):not([type="checkbox"]):focus{
   outline:none;
   border-color:rgba(34,211,238,0.6);
   box-shadow:0 0 0 3px rgba(34,211,238,0.2);
@@ -304,6 +339,12 @@ button{
   box-shadow:0 12px 24px rgba(14,116,144,0.25);
   transition:transform 0.2s ease,box-shadow 0.2s ease;
 }
+button.ghost{
+  background:transparent;
+  border-color:var(--line);
+  color:var(--ink);
+  box-shadow:none;
+}
 button:hover{
   transform:translateY(-1px);
   box-shadow:0 16px 28px rgba(14,116,144,0.35);
@@ -318,6 +359,11 @@ button:active{
   border-radius:12px;
   padding:10px 12px;
   margin:12px 0;
+}
+.hint{
+  font-size:12px;
+  color:var(--muted);
+  margin-top:6px;
 }
 .notice{
   background:rgba(20,83,45,0.35);
@@ -372,6 +418,61 @@ button:active{
 }
 .table-form button{
   width:auto;
+}
+.reset-button{
+  width:auto;
+}
+.modal{
+  border:1px solid var(--line);
+  border-radius:18px;
+  background:var(--card);
+  padding:0;
+  color:var(--ink);
+  box-shadow:var(--shadow);
+  max-width:min(560px,92vw);
+}
+.modal::backdrop{
+  background:rgba(4,10,20,0.7);
+}
+.modal-header{
+  padding:18px 20px 0;
+}
+.modal-body{
+  padding:10px 20px 20px;
+}
+.modal-actions{
+  display:flex;
+  gap:12px;
+  justify-content:flex-end;
+  padding:0 20px 20px;
+}
+.modal-actions button{
+  width:auto;
+}
+.inline-note{
+  font-size:12px;
+  color:var(--muted);
+  margin-top:8px;
+}
+.pill-warning{
+  display:inline-flex;
+  align-items:center;
+  padding:6px 10px;
+  border-radius:999px;
+  background:rgba(251,146,60,0.15);
+  border:1px solid rgba(251,146,60,0.4);
+  color:#fca5a5;
+  font-size:12px;
+}
+.pill{
+  display:inline-flex;
+  align-items:center;
+  padding:6px 10px;
+  border-radius:999px;
+  background:rgba(255,255,255,0.06);
+  border:1px solid var(--line);
+  color:var(--ink);
+  font-size:12px;
 }
 .table th{
   color:var(--muted);

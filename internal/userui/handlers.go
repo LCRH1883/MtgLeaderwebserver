@@ -25,7 +25,8 @@ func (a *app) handleLoginGet(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/app/", http.StatusFound)
 		return
 	}
-	a.templates.renderLogin(w, http.StatusOK, loginViewData{Title: "MTG Friends"})
+	notice := mapLoginNotice(strings.TrimSpace(r.URL.Query().Get("notice")))
+	a.templates.renderLogin(w, http.StatusOK, loginViewData{Title: "MTG Friends", Notice: notice})
 }
 
 func (a *app) handleLoginPost(w http.ResponseWriter, r *http.Request) {
@@ -168,6 +169,64 @@ func (a *app) handleLogoutPost(w http.ResponseWriter, r *http.Request) {
 	}
 	auth.ClearSessionCookie(w, a.cookieSecure)
 	http.Redirect(w, r, "/app/login", http.StatusFound)
+}
+
+func (a *app) handleResetGet(w http.ResponseWriter, r *http.Request) {
+	if a.resetSvc == nil {
+		a.templates.renderError(w, http.StatusServiceUnavailable, "Reset Unavailable", "Password reset is unavailable.")
+		return
+	}
+	token := strings.TrimSpace(r.URL.Query().Get("token"))
+	if token == "" {
+		a.templates.renderReset(w, http.StatusBadRequest, resetViewData{Title: "Reset Password", Error: "Reset token is required."})
+		return
+	}
+	a.templates.renderReset(w, http.StatusOK, resetViewData{Title: "Reset Password", Token: token})
+}
+
+func (a *app) handleResetPost(w http.ResponseWriter, r *http.Request) {
+	if a.resetSvc == nil {
+		a.templates.renderError(w, http.StatusServiceUnavailable, "Reset Unavailable", "Password reset is unavailable.")
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		a.templates.renderReset(w, http.StatusBadRequest, resetViewData{Title: "Reset Password", Error: "Invalid form submission."})
+		return
+	}
+
+	token := strings.TrimSpace(r.FormValue("token"))
+	password := r.FormValue("password")
+	confirm := r.FormValue("confirm")
+
+	switch {
+	case token == "":
+		a.templates.renderReset(w, http.StatusBadRequest, resetViewData{Title: "Reset Password", Error: "Reset token is required."})
+		return
+	case password == "" || confirm == "":
+		a.templates.renderReset(w, http.StatusBadRequest, resetViewData{Title: "Reset Password", Token: token, Error: "All fields are required."})
+		return
+	case password != confirm:
+		a.templates.renderReset(w, http.StatusBadRequest, resetViewData{Title: "Reset Password", Token: token, Error: "Passwords do not match."})
+		return
+	case len(password) < 12:
+		a.templates.renderReset(w, http.StatusBadRequest, resetViewData{Title: "Reset Password", Token: token, Error: "Password must be at least 12 characters."})
+		return
+	}
+
+	if err := a.resetSvc.ResetPassword(r.Context(), token, password); err != nil {
+		switch {
+		case errors.Is(err, domain.ErrResetTokenInvalid):
+			a.templates.renderReset(w, http.StatusBadRequest, resetViewData{Title: "Reset Password", Token: token, Error: "Reset link is invalid or already used."})
+		case errors.Is(err, domain.ErrResetTokenExpired):
+			a.templates.renderReset(w, http.StatusBadRequest, resetViewData{Title: "Reset Password", Token: token, Error: "Reset link has expired."})
+		default:
+			a.logger.Error("userui: reset password failed", "err", err)
+			a.templates.renderReset(w, http.StatusInternalServerError, resetViewData{Title: "Reset Password", Token: token, Error: "Failed to reset password."})
+		}
+		return
+	}
+
+	http.Redirect(w, r, "/app/login?notice=password_reset", http.StatusFound)
 }
 
 func (a *app) handleHome(w http.ResponseWriter, r *http.Request) {
@@ -448,6 +507,15 @@ func mapNoticeCode(code string) string {
 		return "Friend request declined."
 	case "request_cancelled":
 		return "Friend request canceled."
+	default:
+		return ""
+	}
+}
+
+func mapLoginNotice(code string) string {
+	switch code {
+	case "password_reset":
+		return "Password updated. Sign in with your new password."
 	default:
 		return ""
 	}

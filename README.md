@@ -88,6 +88,11 @@ If you access the app over plain HTTP, `APP_PUBLIC_URL` must also be HTTP or log
 - Admin UI (only when `APP_ADMIN_EMAILS` is set):
   - `GET /admin/`
   - `GET /admin/users`
+  - `GET /admin/email` (SMTP settings)
+  - `POST /admin/users/reset` (send reset link / update email)
+- User password reset:
+  - `GET /app/reset`
+  - `POST /app/reset`
 
 ### Example curl flow
 ```bash
@@ -120,3 +125,6 @@ proxy_set_header X-Real-IP $remote_addr;
 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 proxy_set_header X-Forwarded-Proto $scheme;
 ```
+
+### Admin email settings
+Configure SMTP in the admin UI at `https://mtgleader.xyz/admin/email`. Password reset links use `APP_PUBLIC_URL` to build the reset URL and are sent from the selected alias.

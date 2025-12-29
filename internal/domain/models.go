@@ -40,3 +40,27 @@ type Session struct {
 	ExpiresAt time.Time
 	RevokedAt *time.Time
 }
+
+type SMTPSettings struct {
+	Host        string
+	Port        int
+	Username    string
+	Password    string
+	TLSMode     string
+	FromName    string
+	FromEmail   string
+	AliasEmails []string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type PasswordResetToken struct {
+	ID          string
+	UserID      string
+	TokenHash   string
+	SentToEmail string
+	CreatedBy   string
+	CreatedAt   time.Time
+	ExpiresAt   time.Time
+	UsedAt      *time.Time
+}

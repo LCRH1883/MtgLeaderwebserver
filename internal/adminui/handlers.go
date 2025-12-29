@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"MtgLeaderwebserver/internal/auth"
@@ -92,12 +93,29 @@ func (a *app) handleUsersList(w http.ResponseWriter, r *http.Request) {
 			LastLogin: lastLogin,
 		})
 	}
+
+	var (
+		aliases []string
+		hasSMTP bool
+	)
+	if a.emailSvc != nil {
+		settings, ok, err := a.emailSvc.GetSMTPSettings(r.Context())
+		if err != nil {
+			a.logger.Error("adminui: load smtp settings", "err", err)
+		} else if ok {
+			aliases = smtpAliases(settings)
+			hasSMTP = len(aliases) > 0
+		}
+	}
+
 	a.templates.renderUsers(w, http.StatusOK, usersViewData{
-		Title:  "Users",
-		Users:  rows,
-		Query:  q,
-		Notice: notice,
-		Error:  errMsg,
+		Title:       "Users",
+		Users:       rows,
+		Query:       q,
+		Notice:      notice,
+		Error:       errMsg,
+		FromAliases: aliases,
+		HasSMTP:     hasSMTP,
 	})
 }
 
@@ -160,40 +178,249 @@ func (a *app) handlePasswordPost(w http.ResponseWriter, r *http.Request) {
 	a.templates.renderPassword(w, http.StatusOK, data)
 }
 
+func (a *app) handleEmailGet(w http.ResponseWriter, r *http.Request) {
+	if a.emailSvc == nil {
+		a.templates.renderError(w, http.StatusServiceUnavailable, "Email Settings", "Email settings are unavailable.")
+		return
+	}
+	settings, ok, err := a.emailSvc.GetSMTPSettings(r.Context())
+	if err != nil {
+		a.logger.Error("adminui: get smtp settings", "err", err)
+		a.templates.renderError(w, http.StatusInternalServerError, "Email Settings", "Failed to load SMTP settings")
+		return
+	}
+
+	data := smtpViewData{
+		Title:   "Email Settings",
+		TLSMode: "starttls",
+		Port:    587,
+	}
+	if ok {
+		data.Host = settings.Host
+		data.Port = settings.Port
+		data.Username = settings.Username
+		data.TLSMode = settings.TLSMode
+		data.FromName = settings.FromName
+		data.FromEmail = settings.FromEmail
+		data.AliasEmails = strings.Join(settings.AliasEmails, ", ")
+		data.HasPassword = settings.Password != ""
+	}
+	a.templates.renderEmail(w, http.StatusOK, data)
+}
+
+func (a *app) handleEmailPost(w http.ResponseWriter, r *http.Request) {
+	if a.emailSvc == nil {
+		a.templates.renderError(w, http.StatusServiceUnavailable, "Email Settings", "Email settings are unavailable.")
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		a.templates.renderEmail(w, http.StatusBadRequest, smtpViewData{Title: "Email Settings", Error: "Invalid form"})
+		return
+	}
+
+	host := strings.TrimSpace(r.FormValue("host"))
+	portRaw := strings.TrimSpace(r.FormValue("port"))
+	username := strings.TrimSpace(r.FormValue("username"))
+	password := r.FormValue("password")
+	tlsMode := strings.TrimSpace(strings.ToLower(r.FormValue("tls_mode")))
+	fromName := strings.TrimSpace(r.FormValue("from_name"))
+	fromEmail := normalizeEmail(r.FormValue("from_email"))
+	aliasRaw := strings.TrimSpace(r.FormValue("alias_emails"))
+
+	port, err := strconv.Atoi(portRaw)
+	if err != nil || port < 1 || port > 65535 {
+		a.templates.renderEmail(w, http.StatusBadRequest, smtpViewData{
+			Title: "Email Settings",
+			Error: "SMTP port must be between 1 and 65535",
+		})
+		return
+	}
+	if host == "" || username == "" || fromName == "" || !validEmail(fromEmail) {
+		a.templates.renderEmail(w, http.StatusBadRequest, smtpViewData{
+			Title: "Email Settings",
+			Error: "Host, username, from name, and from email are required",
+		})
+		return
+	}
+	switch tlsMode {
+	case "starttls", "tls", "none":
+	default:
+		a.templates.renderEmail(w, http.StatusBadRequest, smtpViewData{
+			Title: "Email Settings",
+			Error: "TLS mode must be starttls, tls, or none",
+		})
+		return
+	}
+
+	aliases, aliasErr := parseAliasEmails(aliasRaw)
+	if aliasErr != nil {
+		a.templates.renderEmail(w, http.StatusBadRequest, smtpViewData{
+			Title: "Email Settings",
+			Error: aliasErr.Error(),
+		})
+		return
+	}
+
+	existing, ok, err := a.emailSvc.GetSMTPSettings(r.Context())
+	if err != nil {
+		a.logger.Error("adminui: get smtp settings", "err", err)
+		a.templates.renderEmail(w, http.StatusInternalServerError, smtpViewData{Title: "Email Settings", Error: "Failed to load SMTP settings"})
+		return
+	}
+	if password == "" && ok {
+		password = existing.Password
+	}
+	if password == "" {
+		a.templates.renderEmail(w, http.StatusBadRequest, smtpViewData{Title: "Email Settings", Error: "SMTP password is required"})
+		return
+	}
+
+	settings := domain.SMTPSettings{
+		Host:        host,
+		Port:        port,
+		Username:    username,
+		Password:    password,
+		TLSMode:     tlsMode,
+		FromName:    fromName,
+		FromEmail:   fromEmail,
+		AliasEmails: aliases,
+	}
+	if err := a.emailSvc.SaveSMTPSettings(r.Context(), settings); err != nil {
+		a.logger.Error("adminui: save smtp settings", "err", err)
+		a.templates.renderEmail(w, http.StatusInternalServerError, smtpViewData{Title: "Email Settings", Error: "Failed to save SMTP settings"})
+		return
+	}
+
+	a.templates.renderEmail(w, http.StatusOK, smtpViewData{
+		Title:       "Email Settings",
+		Success:     "SMTP settings saved",
+		Host:        host,
+		Port:        port,
+		Username:    username,
+		TLSMode:     tlsMode,
+		FromName:    fromName,
+		FromEmail:   fromEmail,
+		AliasEmails: strings.Join(aliases, ", "),
+		HasPassword: true,
+	})
+}
+
 func (a *app) handleUserPasswordReset(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		redirectUsers(w, r, r.FormValue("q"), "", "invalid_form")
 		return
 	}
 
+	action := strings.TrimSpace(r.FormValue("action"))
+	if action == "" {
+		action = strings.TrimSpace(r.FormValue("mode"))
+	}
 	userID := strings.TrimSpace(r.FormValue("user_id"))
-	password := r.FormValue("new_password")
-	confirm := r.FormValue("confirm_password")
 	query := strings.TrimSpace(r.FormValue("q"))
 
-	switch {
-	case userID == "" || password == "" || confirm == "":
-		redirectUsers(w, r, query, "", "missing_fields")
-		return
-	case password != confirm:
-		redirectUsers(w, r, query, "", "password_mismatch")
-		return
-	case len(password) < 12:
-		redirectUsers(w, r, query, "", "password_short")
+	if userID == "" {
+		redirectUsers(w, r, query, "", "missing_user")
 		return
 	}
 
-	if err := a.adminSvc.ResetUserPassword(r.Context(), userID, password); err != nil {
+	switch action {
+	case "update_email":
+		newEmail := normalizeEmail(r.FormValue("new_email"))
+		if !validEmail(newEmail) {
+			redirectUsers(w, r, query, "", "invalid_email")
+			return
+		}
+		if err := a.adminSvc.UpdateUserEmail(r.Context(), userID, newEmail); err != nil {
+			if errors.Is(err, domain.ErrEmailTaken) {
+				redirectUsers(w, r, query, "", "email_taken")
+				return
+			}
+			if errors.Is(err, domain.ErrNotFound) {
+				redirectUsers(w, r, query, "", "user_not_found")
+				return
+			}
+			a.logger.Error("adminui: update email failed", "err", err, "user_id", userID)
+			redirectUsers(w, r, query, "", "email_update_failed")
+			return
+		}
+		redirectUsers(w, r, query, "email_updated", "")
+		return
+	case "send_user", "send_other":
+	default:
+		redirectUsers(w, r, query, "", "invalid_action")
+		return
+	}
+
+	if a.resetSvc == nil || a.emailSvc == nil {
+		redirectUsers(w, r, query, "", "smtp_unavailable")
+		return
+	}
+
+	u, err := a.adminSvc.GetUserByID(r.Context(), userID)
+	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			redirectUsers(w, r, query, "", "user_not_found")
 			return
 		}
-		a.logger.Error("adminui: reset password failed", "err", err, "user_id", userID)
+		a.logger.Error("adminui: fetch user failed", "err", err, "user_id", userID)
 		redirectUsers(w, r, query, "", "reset_failed")
 		return
 	}
 
-	redirectUsers(w, r, query, "password_reset", "")
+	deliverTo := ""
+	switch action {
+	case "send_user":
+		deliverTo = strings.TrimSpace(u.Email)
+		if deliverTo == "" {
+			redirectUsers(w, r, query, "", "email_missing")
+			return
+		}
+		if !validEmail(deliverTo) {
+			redirectUsers(w, r, query, "", "invalid_email")
+			return
+		}
+	case "send_other":
+		deliverTo = normalizeEmail(r.FormValue("deliver_to"))
+		if !validEmail(deliverTo) {
+			redirectUsers(w, r, query, "", "invalid_email")
+			return
+		}
+	}
+
+	settings, ok, err := a.emailSvc.GetSMTPSettings(r.Context())
+	if err != nil || !ok {
+		if err != nil {
+			a.logger.Error("adminui: smtp settings missing", "err", err)
+		}
+		redirectUsers(w, r, query, "", "smtp_unavailable")
+		return
+	}
+	aliases := smtpAliases(settings)
+	fromAlias := strings.TrimSpace(r.FormValue("from_alias"))
+	if fromAlias == "" && len(aliases) > 0 {
+		fromAlias = aliases[0]
+	}
+	if !aliasAllowed(aliases, fromAlias) {
+		redirectUsers(w, r, query, "", "invalid_alias")
+		return
+	}
+
+	adminUser, _, _ := a.currentUser(r)
+	token, err := a.resetSvc.CreateResetToken(r.Context(), u.ID, deliverTo, adminUser.ID)
+	if err != nil {
+		a.logger.Error("adminui: create reset token failed", "err", err, "user_id", userID)
+		redirectUsers(w, r, query, "", "reset_failed")
+		return
+	}
+
+	resetURL := a.resetLink(r, token)
+	if err := a.emailSvc.SendPasswordReset(r.Context(), fromAlias, deliverTo, resetURL); err != nil {
+		a.logger.Error("adminui: send reset email failed", "err", err, "user_id", userID)
+		redirectUsers(w, r, query, "", "reset_failed")
+		return
+	}
+
+	redirectUsers(w, r, query, "reset_sent", "")
 }
 
 // minimal duplicate of httpapi.clientIP to avoid import cycles.
@@ -234,8 +461,10 @@ func redirectUsers(w http.ResponseWriter, r *http.Request, q, notice, errCode st
 
 func mapUsersNotice(code string) string {
 	switch code {
-	case "password_reset":
-		return "Password reset."
+	case "reset_sent":
+		return "Password reset email sent."
+	case "email_updated":
+		return "User email updated."
 	default:
 		return ""
 	}
@@ -245,16 +474,26 @@ func mapUsersError(code string) string {
 	switch code {
 	case "invalid_form":
 		return "Invalid form submission."
-	case "missing_fields":
-		return "User and password fields are required."
-	case "password_mismatch":
-		return "Passwords do not match."
-	case "password_short":
-		return "Password must be at least 12 characters."
+	case "missing_user":
+		return "User is required."
+	case "invalid_action":
+		return "Invalid action."
+	case "invalid_email":
+		return "Enter a valid email address."
+	case "email_missing":
+		return "User email is missing."
+	case "email_taken":
+		return "That email is already in use."
+	case "email_update_failed":
+		return "Failed to update user email."
+	case "smtp_unavailable":
+		return "SMTP is not configured."
+	case "invalid_alias":
+		return "Selected alias is not allowed."
 	case "user_not_found":
 		return "User not found."
 	case "reset_failed":
-		return "Failed to reset password."
+		return "Failed to send reset email."
 	default:
 		return ""
 	}

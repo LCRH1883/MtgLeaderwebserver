@@ -49,3 +49,10 @@ func uuidBytesToString(b [16]byte) string {
 	hex.Encode(buf[24:36], b[10:16])
 	return string(buf[:])
 }
+
+func textArrayOrEmpty(a pgtype.FlatArray[string]) []string {
+	if a == nil {
+		return nil
+	}
+	return []string(a)
+}

@@ -12,6 +12,7 @@ type templates struct {
 	login    *template.Template
 	register *template.Template
 	home     *template.Template
+	reset    *template.Template
 	errorT   *template.Template
 }
 
@@ -22,9 +23,10 @@ type viewData struct {
 }
 
 type loginViewData struct {
-	Title string
-	Email string
-	Error string
+	Title  string
+	Email  string
+	Error  string
+	Notice string
 }
 
 type registerViewData struct {
@@ -32,6 +34,13 @@ type registerViewData struct {
 	Email    string
 	Username string
 	Error    string
+}
+
+type resetViewData struct {
+	Title  string
+	Token  string
+	Error  string
+	Notice string
 }
 
 type homeViewData struct {
@@ -77,12 +86,16 @@ func parseTemplates() (*templates, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parse home: %w", err)
 	}
+	resetT, err := parse("templates/reset.html")
+	if err != nil {
+		return nil, fmt.Errorf("parse reset: %w", err)
+	}
 	errorT, err := parse("templates/error.html")
 	if err != nil {
 		return nil, fmt.Errorf("parse error: %w", err)
 	}
 
-	return &templates{login: login, register: register, home: home, errorT: errorT}, nil
+	return &templates{login: login, register: register, home: home, reset: resetT, errorT: errorT}, nil
 }
 
 func (t *templates) renderLogin(w http.ResponseWriter, status int, data any) {
@@ -101,6 +114,12 @@ func (t *templates) renderHome(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
 	_ = t.home.ExecuteTemplate(w, "home.html", data)
+}
+
+func (t *templates) renderReset(w http.ResponseWriter, status int, data any) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
+	_ = t.reset.ExecuteTemplate(w, "reset.html", data)
 }
 
 func (t *templates) renderErrorPage(w http.ResponseWriter, status int, data any) {

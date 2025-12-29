@@ -50,6 +50,10 @@
 - If using Nginx Proxy Manager or nginx with HTTPS termination, set `APP_PUBLIC_URL` to the external HTTPS URL.
 - Forward `Host` and `X-Forwarded-Proto` headers so cookies are issued for the correct domain.
 
+## Admin Email and Password Resets
+- Configure SMTP in the admin UI at `https://mtgleader.xyz/admin/email`.
+- Password reset links are sent from configured SMTP aliases and handled at `/app/reset`.
+
 ## Canonical URLs
 - Production base URL: `https://mtgleader.xyz` (use full URLs in docs and responses).
 - User UI: `https://mtgleader.xyz/app/login` and `https://mtgleader.xyz/app/register`.
