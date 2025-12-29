@@ -12,6 +12,7 @@ type templates struct {
 	login    *template.Template
 	register *template.Template
 	home     *template.Template
+	friends  *template.Template
 	profile  *template.Template
 	reset    *template.Template
 	errorT   *template.Template
@@ -45,12 +46,19 @@ type resetViewData struct {
 }
 
 type homeViewData struct {
+	Title  string
+	User   domain.User
+	Error  string
+	Notice string
+}
+
+type friendsViewData struct {
 	Title    string
 	User     domain.User
 	View     string
 	Query    string
 	Results  []searchResult
-	Friends  []domain.UserSummary
+	Friends  []friendCard
 	Incoming []domain.FriendRequest
 	Outgoing []domain.FriendRequest
 	Error    string
@@ -62,7 +70,6 @@ type profileViewData struct {
 	User        domain.User
 	DisplayName string
 	AvatarURL   string
-	Initials    string
 	Error       string
 	Notice      string
 }
@@ -74,6 +81,12 @@ type searchResult struct {
 	IsOutgoing bool
 	IsIncoming bool
 	RequestID  string
+}
+
+type friendCard struct {
+	Username    string
+	DisplayName string
+	AvatarURL   string
 }
 
 func parseTemplates() (*templates, error) {
@@ -97,6 +110,10 @@ func parseTemplates() (*templates, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parse home: %w", err)
 	}
+	friends, err := parse("templates/layout.html", "templates/friends.html")
+	if err != nil {
+		return nil, fmt.Errorf("parse friends: %w", err)
+	}
 	profile, err := parse("templates/layout.html", "templates/profile.html")
 	if err != nil {
 		return nil, fmt.Errorf("parse profile: %w", err)
@@ -110,7 +127,7 @@ func parseTemplates() (*templates, error) {
 		return nil, fmt.Errorf("parse error: %w", err)
 	}
 
-	return &templates{login: login, register: register, home: home, profile: profile, reset: resetT, errorT: errorT}, nil
+	return &templates{login: login, register: register, home: home, friends: friends, profile: profile, reset: resetT, errorT: errorT}, nil
 }
 
 func (t *templates) renderLogin(w http.ResponseWriter, status int, data any) {
@@ -129,6 +146,12 @@ func (t *templates) renderHome(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
 	_ = t.home.ExecuteTemplate(w, "home.html", data)
+}
+
+func (t *templates) renderFriends(w http.ResponseWriter, status int, data any) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
+	_ = t.friends.ExecuteTemplate(w, "friends.html", data)
 }
 
 func (t *templates) renderProfile(w http.ResponseWriter, status int, data any) {

@@ -327,10 +327,71 @@ button.ghost{
   border:1px solid var(--line);
   background:white;
 }
+.friend-card-avatar{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  justify-content:flex-start;
+}
+.friend-avatar{
+  width:36px;
+  height:36px;
+  border-radius:10px;
+  border:1px solid var(--line);
+  background:white;
+  object-fit:cover;
+}
+.friend-name{
+  font-style:italic;
+  font-weight:600;
+}
 .grid{
   display:grid;
   grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
   gap:20px;
+}
+.home-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:18px;
+  margin-top:24px;
+}
+.home-card{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  padding:18px;
+  border-radius:18px;
+  border:1px solid var(--line);
+  background:white;
+  box-shadow:var(--shadow);
+  text-decoration:none;
+  color:inherit;
+  transition:transform 0.2s ease,box-shadow 0.2s ease,border-color 0.2s ease;
+}
+.home-card:hover{
+  transform:translateY(-2px);
+  border-color:rgba(15,118,110,0.35);
+  box-shadow:0 20px 40px rgba(15,23,42,0.14);
+}
+.home-card-title{
+  font-family:"Space Grotesk","Work Sans",sans-serif;
+  font-size:18px;
+  font-weight:700;
+}
+.home-card-sub{
+  color:var(--muted);
+  line-height:1.5;
+}
+.home-card-cta{
+  margin-top:auto;
+  font-weight:600;
+  color:var(--accent);
+}
+.home-card.disabled{
+  opacity:0.6;
+  pointer-events:none;
+  background:rgba(255,255,255,0.7);
 }
 .profile-grid{
   display:grid;
@@ -364,6 +425,9 @@ button.ghost{
   font-size:24px;
   color:var(--accent);
   box-shadow:var(--shadow);
+}
+.avatar-preview{
+  object-fit:cover;
 }
 .profile-meta{
   display:grid;

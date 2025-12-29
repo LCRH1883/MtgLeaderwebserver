@@ -138,7 +138,7 @@ func (s *FriendshipsStore) ListOverview(ctx context.Context, userID string) (dom
 
 func (s *FriendshipsStore) listFriends(ctx context.Context, userID string) ([]domain.UserSummary, error) {
 	const q = `
-		SELECT u.id, u.username
+		SELECT u.id, u.username, u.display_name, u.avatar_path, u.avatar_updated_at
 		FROM friendships f
 		JOIN users u ON u.id = CASE
 			WHEN f.requester_id = $1 THEN f.addressee_id
@@ -156,12 +156,23 @@ func (s *FriendshipsStore) listFriends(ctx context.Context, userID string) ([]do
 
 	var out []domain.UserSummary
 	for rows.Next() {
-		var idUUID pgtype.UUID
-		var username string
-		if err := rows.Scan(&idUUID, &username); err != nil {
+		var (
+			idUUID        pgtype.UUID
+			username      string
+			displayName   pgtype.Text
+			avatarPath    pgtype.Text
+			avatarUpdated pgtype.Timestamptz
+		)
+		if err := rows.Scan(&idUUID, &username, &displayName, &avatarPath, &avatarUpdated); err != nil {
 			return nil, fmt.Errorf("scan friend: %w", err)
 		}
-		out = append(out, domain.UserSummary{ID: uuidOrEmpty(idUUID), Username: username})
+		out = append(out, domain.UserSummary{
+			ID:              uuidOrEmpty(idUUID),
+			Username:        username,
+			DisplayName:     textOrEmpty(displayName),
+			AvatarPath:      textOrEmpty(avatarPath),
+			AvatarUpdatedAt: timestamptzPtr(avatarUpdated),
+		})
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("list friends: %w", err)

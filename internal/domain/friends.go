@@ -3,8 +3,11 @@ package domain
 import "time"
 
 type UserSummary struct {
-	ID       string `json:"id"`
-	Username string `json:"username"`
+	ID              string     `json:"id"`
+	Username        string     `json:"username"`
+	DisplayName     string     `json:"display_name,omitempty"`
+	AvatarPath      string     `json:"avatar_path,omitempty"`
+	AvatarUpdatedAt *time.Time `json:"avatar_updated_at,omitempty"`
 }
 
 type FriendRequest struct {

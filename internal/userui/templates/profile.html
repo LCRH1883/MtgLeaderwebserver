@@ -22,11 +22,7 @@
     </div>
     <div class="profile-card">
       <div class="avatar-stack">
-        {{if .AvatarURL}}
-          <img class="avatar-preview" src="{{.AvatarURL}}" alt="Profile avatar" />
-        {{else}}
-          <div class="avatar-placeholder">{{.Initials}}</div>
-        {{end}}
+        <img class="avatar-preview" src="{{.AvatarURL}}" alt="Profile avatar" />
         <div class="muted small">Stored as 512x512 JPG</div>
       </div>
       <div class="profile-meta">

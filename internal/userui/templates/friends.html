@@ -1,0 +1,188 @@
+{{define "content"}}
+<section class="tabs-bar">
+  <div class="tabs">
+    <a class="tab {{if eq .View "all"}}active{{end}}" href="/app/friends">All</a>
+    <a class="tab {{if eq .View "search"}}active{{end}}" href="/app/friends?view=search{{if .Query}}&q={{urlquery .Query}}{{end}}">Search</a>
+    <a class="tab {{if eq .View "incoming"}}active{{end}}" href="/app/friends?view=incoming">Incoming</a>
+    <a class="tab {{if eq .View "outgoing"}}active{{end}}" href="/app/friends?view=outgoing">Outgoing</a>
+    <a class="tab {{if eq .View "friends"}}active{{end}}" href="/app/friends?view=friends">Friends</a>
+  </div>
+</section>
+
+{{if .Error}}
+  <div class="alert">{{.Error}}</div>
+{{end}}
+{{if .Notice}}
+  <div class="notice">{{.Notice}}</div>
+{{end}}
+
+{{if or (eq .View "all") (eq .View "search")}}
+<section class="hero stack">
+  <div>
+    <p class="eyebrow">Find friends</p>
+    <h1>Search players and grow your pod.</h1>
+    <p class="lead">Use usernames to send a friend request. Once accepted, you both appear in each other's friends list.</p>
+  </div>
+  <form class="search-card" method="get" action="/app/friends">
+    <input type="hidden" name="view" value="{{.View}}" />
+    <label class="label" for="q">Search by username</label>
+    <div class="search-row">
+      <input id="q" name="q" type="search" placeholder="e.g. lotus_mage" value="{{.Query}}" />
+      <button type="submit">Search</button>
+    </div>
+    <div class="hint">Minimum 3 characters.</div>
+  </form>
+</section>
+
+<section class="panel">
+  <div class="panel-header">
+    <h2>Search results</h2>
+    {{if .Query}}<div class="muted">Results for "{{.Query}}"</div>{{end}}
+  </div>
+  {{if .Query}}
+    {{if .Results}}
+      <div class="list">
+        {{range .Results}}
+          <div class="list-row">
+            <div>
+              <div class="username">@{{.Username}}</div>
+            </div>
+            <div class="actions">
+              {{if .IsFriend}}
+                <span class="pill success">Friends</span>
+              {{else if .IsIncoming}}
+                <form method="post" action="/app/friends/requests/accept">
+                  <input type="hidden" name="id" value="{{.RequestID}}" />
+                  <input type="hidden" name="q" value="{{$.Query}}" />
+                  <input type="hidden" name="view" value="{{$.View}}" />
+                  <button type="submit">Accept</button>
+                </form>
+                <form method="post" action="/app/friends/requests/decline">
+                  <input type="hidden" name="id" value="{{.RequestID}}" />
+                  <input type="hidden" name="q" value="{{$.Query}}" />
+                  <input type="hidden" name="view" value="{{$.View}}" />
+                  <button class="ghost" type="submit">Decline</button>
+                </form>
+              {{else if .IsOutgoing}}
+                <form method="post" action="/app/friends/requests/cancel">
+                  <input type="hidden" name="id" value="{{.RequestID}}" />
+                  <input type="hidden" name="q" value="{{$.Query}}" />
+                  <input type="hidden" name="view" value="{{$.View}}" />
+                  <button class="ghost" type="submit">Cancel request</button>
+                </form>
+              {{else}}
+                <form method="post" action="/app/friends/requests">
+                  <input type="hidden" name="username" value="{{.Username}}" />
+                  <input type="hidden" name="q" value="{{$.Query}}" />
+                  <input type="hidden" name="view" value="{{$.View}}" />
+                  <button type="submit">Add friend</button>
+                </form>
+              {{end}}
+            </div>
+          </div>
+        {{end}}
+      </div>
+    {{else}}
+      <div class="empty muted">No matches yet.</div>
+    {{end}}
+  {{else}}
+    <div class="empty muted">Type a username to start searching.</div>
+  {{end}}
+</section>
+{{end}}
+
+{{if or (eq .View "all") (eq .View "incoming") (eq .View "outgoing")}}
+<section class="{{if eq .View "all"}}grid{{else}}stack{{end}}">
+  {{if or (eq .View "all") (eq .View "incoming")}}
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Incoming requests</h2>
+      <div class="muted">{{len .Incoming}} pending</div>
+    </div>
+    {{if .Incoming}}
+      <div class="list">
+        {{range .Incoming}}
+          <div class="list-row">
+            <div>
+              <div class="username">@{{.User.Username}}</div>
+              <div class="muted small">Requested {{.CreatedAt.Format "Jan 2, 2006"}}</div>
+            </div>
+            <div class="actions">
+              <form method="post" action="/app/friends/requests/accept">
+                <input type="hidden" name="id" value="{{.ID}}" />
+                <input type="hidden" name="view" value="{{$.View}}" />
+                <button type="submit">Accept</button>
+              </form>
+              <form method="post" action="/app/friends/requests/decline">
+                <input type="hidden" name="id" value="{{.ID}}" />
+                <input type="hidden" name="view" value="{{$.View}}" />
+                <button class="ghost" type="submit">Decline</button>
+              </form>
+            </div>
+          </div>
+        {{end}}
+      </div>
+    {{else}}
+      <div class="empty muted">No incoming requests.</div>
+    {{end}}
+  </div>
+  {{end}}
+
+  {{if or (eq .View "all") (eq .View "outgoing")}}
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Outgoing requests</h2>
+      <div class="muted">{{len .Outgoing}} waiting</div>
+    </div>
+    {{if .Outgoing}}
+      <div class="list">
+        {{range .Outgoing}}
+          <div class="list-row">
+            <div>
+              <div class="username">@{{.User.Username}}</div>
+              <div class="muted small">Sent {{.CreatedAt.Format "Jan 2, 2006"}}</div>
+            </div>
+            <div class="actions">
+              <span class="pill">Pending</span>
+              <form method="post" action="/app/friends/requests/cancel">
+                <input type="hidden" name="id" value="{{.ID}}" />
+                <input type="hidden" name="view" value="{{$.View}}" />
+                <button class="ghost" type="submit">Cancel</button>
+              </form>
+            </div>
+          </div>
+        {{end}}
+      </div>
+    {{else}}
+      <div class="empty muted">No outgoing requests.</div>
+    {{end}}
+  </div>
+  {{end}}
+</section>
+{{end}}
+
+{{if or (eq .View "all") (eq .View "friends")}}
+<section class="panel">
+  <div class="panel-header">
+    <h2>Friends list</h2>
+    <div class="muted">{{len .Friends}} total</div>
+  </div>
+  {{if .Friends}}
+    <div class="list">
+      {{range .Friends}}
+        <div class="list-row friend-card-avatar">
+          <img class="friend-avatar" src="{{.AvatarURL}}" alt="Avatar for {{.DisplayName}}" loading="lazy" />
+          <div>
+            <div class="friend-name">{{.DisplayName}}</div>
+            <div class="username">@{{.Username}}</div>
+          </div>
+        </div>
+      {{end}}
+    </div>
+  {{else}}
+    <div class="empty muted">No friends yet. Search for a username above.</div>
+  {{end}}
+</section>
+{{end}}
+{{end}}
+{{define "friends.html"}}{{template "layout" .}}{{end}}

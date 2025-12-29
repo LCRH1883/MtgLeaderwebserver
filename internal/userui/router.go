@@ -63,6 +63,7 @@ func New(opts Opts) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /app", app.redirectApp)
 	mux.HandleFunc("GET /app/", app.requireAuth(app.handleHome))
+	mux.HandleFunc("GET /app/friends", app.requireAuth(app.handleFriends))
 	mux.HandleFunc("GET /app/login", app.handleLoginGet)
 	mux.HandleFunc("POST /app/login", app.handleLoginPost)
 	mux.HandleFunc("GET /app/register", app.handleRegisterGet)
