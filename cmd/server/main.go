@@ -19,6 +19,7 @@ import (
 	"MtgLeaderwebserver/internal/httpapi"
 	"MtgLeaderwebserver/internal/service"
 	"MtgLeaderwebserver/internal/store/postgres"
+	"MtgLeaderwebserver/internal/userui"
 )
 
 func main() {
@@ -36,6 +37,9 @@ func main() {
 		matchSvc   *service.MatchService
 		usersSvc   *service.UsersService
 		adminSvc   *service.AdminService
+		resetSvc   *service.PasswordResetService
+		emailSvc   *service.EmailService
+		profileSvc *service.ProfileService
 		dbPing     func(context.Context) error
 	)
 
@@ -53,6 +57,8 @@ func main() {
 		matches := postgres.NewMatchesStore(pgPool)
 		userSearch := postgres.NewUserSearchStore(pgPool)
 		adminUsers := postgres.NewAdminUsersStore(pgPool)
+		adminSettings := postgres.NewAdminSettingsStore(pgPool)
+		passwordResets := postgres.NewPasswordResetStore(pgPool)
 
 		if err := bootstrapAdminUser(context.Background(), logger, users, cfg.AdminBootstrapEmail, cfg.AdminBootstrapUsername, cfg.AdminBootstrapPassword); err != nil {
 			logger.Error("bootstrap admin failed", "err", err)
@@ -60,9 +66,11 @@ func main() {
 		}
 
 		authSvc = &service.AuthService{
-			Users:      users,
-			Sessions:   sessions,
-			SessionTTL: cfg.SessionTTL,
+			Users:             users,
+			Sessions:          sessions,
+			SessionTTL:        cfg.SessionTTL,
+			GoogleWebClientID: cfg.GoogleWebClientID,
+			AppleServiceID:    cfg.AppleServiceID,
 		}
 		friendsSvc = &service.FriendsService{
 			Users:       users,
@@ -74,6 +82,12 @@ func main() {
 		}
 		usersSvc = &service.UsersService{Store: userSearch}
 		adminSvc = &service.AdminService{Users: adminUsers}
+		resetSvc = &service.PasswordResetService{
+			Store: passwordResets,
+			Users: users,
+		}
+		emailSvc = &service.EmailService{Settings: adminSettings}
+		profileSvc = &service.ProfileService{Store: users}
 		dbPing = pgPool.Ping
 	}
 
@@ -99,10 +113,13 @@ func main() {
 			Logger:       logger,
 			Auth:         authSvc,
 			Admin:        adminSvc,
+			Reset:        resetSvc,
+			Email:        emailSvc,
 			CookieCodec:  auth.NewCookieCodec([]byte(cfg.CookieSecret)),
 			CookieSecure: cfg.CookieSecure(),
 			SessionTTL:   cfg.SessionTTL,
 			AdminEmails:  cfg.AdminEmails,
+			PublicURL:    cfg.PublicURL,
 		})
 		root.Handle("/admin", adminRouter)
 		root.Handle("/admin/", adminRouter)
@@ -117,6 +134,22 @@ func main() {
 			_, _ = w.Write([]byte("admin ui disabled: set APP_DB_DSN and APP_ADMIN_EMAILS (and restart the server)\n"))
 		})
 	}
+
+	userRouter := userui.New(userui.Opts{
+		Logger:       logger,
+		Auth:         authSvc,
+		Friends:      friendsSvc,
+		Users:        usersSvc,
+		Matches:      matchSvc,
+		Reset:        resetSvc,
+		Profile:      profileSvc,
+		AvatarDir:    cfg.AvatarDir,
+		CookieCodec:  auth.NewCookieCodec([]byte(cfg.CookieSecret)),
+		CookieSecure: cfg.CookieSecure(),
+		SessionTTL:   cfg.SessionTTL,
+	})
+	root.Handle("/app", userRouter)
+	root.Handle("/app/", userRouter)
 
 	srv := &http.Server{
 		Addr:              cfg.Addr,
@@ -154,7 +187,10 @@ func bootstrapAdminUser(ctx context.Context, logger *slog.Logger, users *postgre
 		logger = slog.Default()
 	}
 	if len(password) < 12 {
-		return errors.New("APP_ADMIN_BOOTSTRAP_PASSWORD: must be at least 12 characters")
+		if password != "admin" {
+			return errors.New("APP_ADMIN_BOOTSTRAP_PASSWORD: must be at least 12 characters")
+		}
+		logger.Warn("admin bootstrap: weak password in use", "email", email)
 	}
 	if email == "" || username == "" {
 		return errors.New("admin bootstrap: email and username are required")

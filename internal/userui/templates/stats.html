@@ -1,0 +1,95 @@
+{{define "content"}}
+<section class="stack">
+  <div>
+    <p class="eyebrow">Stats</p>
+    <h1>Your performance overview.</h1>
+    <p class="lead">Track wins, losses, and average turn pace across formats.</p>
+  </div>
+</section>
+
+{{if .Error}}
+  <div class="alert">{{.Error}}</div>
+{{end}}
+{{if .Notice}}
+  <div class="notice">{{.Notice}}</div>
+{{end}}
+
+<section class="panel">
+  <div class="panel-header">
+    <h2>Overall</h2>
+    <div class="muted">Completed matches only</div>
+  </div>
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Matches</div>
+      <div class="stat-value">{{.Summary.MatchesPlayed}}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Wins</div>
+      <div class="stat-value">{{.Summary.Wins}}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Losses</div>
+      <div class="stat-value">{{.Summary.Losses}}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Avg turn</div>
+      <div class="stat-value">{{.Summary.AvgTurnSeconds}}s</div>
+    </div>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-header">
+    <h2>Top opponents</h2>
+    <div class="muted">Who you see the most</div>
+  </div>
+  <div class="list">
+    <div class="list-row stats-row">
+      <div class="label">Most often beat</div>
+      {{if .MostOftenBeat}}
+        <div class="stats-inline">
+          <span class="pill">@{{.MostOftenBeat.Username}}</span>
+          <span class="pill">Wins {{.MostOftenBeat.Count}}</span>
+        </div>
+      {{else}}
+        <div class="muted">—</div>
+      {{end}}
+    </div>
+    <div class="list-row stats-row">
+      <div class="label">Most often beats you</div>
+      {{if .MostOftenBeatsYou}}
+        <div class="stats-inline">
+          <span class="pill">@{{.MostOftenBeatsYou.Username}}</span>
+          <span class="pill">Wins {{.MostOftenBeatsYou.Count}}</span>
+        </div>
+      {{else}}
+        <div class="muted">—</div>
+      {{end}}
+    </div>
+  </div>
+</section>
+
+{{if .Formats}}
+<section class="panel">
+  <div class="panel-header">
+    <h2>By format</h2>
+    <div class="muted">Breakdown by format</div>
+  </div>
+  <div class="list">
+    {{range .Formats}}
+      <div class="list-row stats-row">
+        <div class="format-pill">{{.Format}}</div>
+        <div class="stats-inline">
+          <span class="pill">M {{.MatchesPlayed}}</span>
+          <span class="pill">W {{.Wins}}</span>
+          <span class="pill">L {{.Losses}}</span>
+          <span class="pill">Avg {{.AvgTurnSeconds}}s</span>
+        </div>
+      </div>
+    {{end}}
+  </div>
+</section>
+{{end}}
+{{end}}
+{{define "stats.html"}}{{template "layout" .}}{{end}}

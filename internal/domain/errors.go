@@ -8,15 +8,18 @@ import (
 )
 
 var (
-	ErrUnauthorized       = errors.New("unauthorized")
-	ErrForbidden          = errors.New("forbidden")
-	ErrNotFound           = errors.New("not_found")
-	ErrUsernameTaken      = errors.New("username_taken")
-	ErrEmailTaken         = errors.New("email_taken")
-	ErrInvalidCredentials = errors.New("invalid_credentials")
-	ErrUserDisabled       = errors.New("user_disabled")
-	ErrFriendshipExists   = errors.New("friendship_exists")
-	ErrValidation         = errors.New("validation")
+	ErrUnauthorized          = errors.New("unauthorized")
+	ErrForbidden             = errors.New("forbidden")
+	ErrNotFound              = errors.New("not_found")
+	ErrUsernameTaken         = errors.New("username_taken")
+	ErrEmailTaken            = errors.New("email_taken")
+	ErrInvalidCredentials    = errors.New("invalid_credentials")
+	ErrUserDisabled          = errors.New("user_disabled")
+	ErrFriendshipExists      = errors.New("friendship_exists")
+	ErrExternalAccountExists = errors.New("external_account_exists")
+	ErrResetTokenInvalid     = errors.New("reset_token_invalid")
+	ErrResetTokenExpired     = errors.New("reset_token_expired")
+	ErrValidation            = errors.New("validation")
 )
 
 type ValidationError struct {

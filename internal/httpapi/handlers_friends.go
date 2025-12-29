@@ -87,3 +87,23 @@ func (a *api) handleFriendsDecline(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
+func (a *api) handleFriendsCancel(w http.ResponseWriter, r *http.Request) {
+	u, ok := CurrentUser(r.Context())
+	if !ok {
+		WriteDomainError(w, domain.ErrUnauthorized)
+		return
+	}
+
+	id := strings.TrimSpace(r.PathValue("id"))
+	if id == "" {
+		WriteDomainError(w, domain.NewValidationError(map[string]string{"id": "required"}))
+		return
+	}
+
+	if err := a.friendsSvc.Cancel(r.Context(), u.ID, id); err != nil {
+		WriteDomainError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}

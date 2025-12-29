@@ -15,4 +15,3 @@ exec "${ROOT_DIR}/scripts/go" run github.com/pressly/goose/v3/cmd/goose@v3.21.1 
   -dir "${ROOT_DIR}/migrations" \
   postgres "${APP_DB_DSN}" \
   "${cmd}" "$@"
-

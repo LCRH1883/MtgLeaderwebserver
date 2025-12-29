@@ -1,0 +1,93 @@
+{{define "layout"}}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>{{.Title}}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/app/static/app.css?v=7" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="container topbar-inner">
+        <a class="brand" href="/app/">
+          <span class="brand-mark">MTG</span>
+          <div>
+            <div class="brand-title">MTG Leader</div>
+            <div class="brand-sub">Your playgroup hub</div>
+          </div>
+        </a>
+        <div class="nav">
+          <a class="nav-link" href="/app/">Home</a>
+          <a class="nav-link" href="/app/friends">Friends</a>
+          <a class="nav-link" href="/app/matches">Matches</a>
+          <a class="nav-link" href="/app/stats">Stats</a>
+          <button class="nav-toggle" type="button" id="theme-toggle" aria-pressed="false">Dark mode</button>
+          <div class="nav-user">Signed in as <span>{{if .User.DisplayName}}{{.User.DisplayName}}{{else}}@{{.User.Username}}{{end}}</span></div>
+          <a class="nav-link" href="/app/profile">Profile</a>
+          <form method="post" action="/app/logout">
+            <button class="ghost" type="submit">Logout</button>
+          </form>
+        </div>
+      </div>
+    </header>
+    <main class="container">
+      {{template "content" .}}
+    </main>
+    <script>
+      (() => {
+        const root = document.documentElement;
+        const storageKey = "mtg-theme";
+        const button = document.getElementById("theme-toggle");
+        const preferred = () => (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        const applyTheme = (theme) => {
+          if (theme === "dark" || theme === "light") {
+            root.setAttribute("data-theme", theme);
+            if (document.body) {
+              document.body.setAttribute("data-theme", theme);
+            }
+          } else {
+            root.removeAttribute("data-theme");
+            if (document.body) {
+              document.body.removeAttribute("data-theme");
+            }
+          }
+          updateLabel(theme);
+        };
+        const updateLabel = (forced) => {
+          if (!button) {
+            return;
+          }
+          const current = forced || root.getAttribute("data-theme") || preferred();
+          button.textContent = current === "dark" ? "Light mode" : "Dark mode";
+          button.setAttribute("aria-pressed", current === "dark");
+        };
+        let stored = "";
+        try {
+          stored = localStorage.getItem(storageKey) || "";
+        } catch (err) {
+          stored = "";
+        }
+        if (stored === "dark" || stored === "light") {
+          applyTheme(stored);
+        } else {
+          updateLabel();
+        }
+        if (button) {
+          button.addEventListener("click", () => {
+            const current = root.getAttribute("data-theme") || preferred();
+            const next = current === "dark" ? "light" : "dark";
+            applyTheme(next);
+            try {
+              localStorage.setItem(storageKey, next);
+            } catch (err) {}
+          });
+        }
+      })();
+    </script>
+  </body>
+</html>
+{{end}}

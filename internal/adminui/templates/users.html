@@ -1,5 +1,12 @@
 {{define "content"}}
 <h1>Users</h1>
+<form method="get" action="/admin/users" class="search-row">
+  <input type="search" name="q" placeholder="Search by email, username, or ID" value="{{.Query}}" />
+  <button type="submit">Search</button>
+  {{if .Query}}<a class="inline-link" href="/admin/users">Clear</a>{{end}}
+</form>
+{{if .Error}}<div class="alert">{{.Error}}</div>{{end}}
+{{if .Notice}}<div class="notice">{{.Notice}}</div>{{end}}
 <div class="card">
   <table class="table">
     <thead>
@@ -8,19 +15,151 @@
         <th>Email</th>
         <th>Username</th>
         <th>Status</th>
+        <th>Joined</th>
+        <th>Last Login</th>
+        <th>Reset Password</th>
       </tr>
     </thead>
     <tbody>
       {{range .Users}}
       <tr>
         <td class="mono">{{.ID}}</td>
-        <td>{{.Email}}</td>
+        <td>{{if .Email}}{{.Email}}{{else}}<span class="muted">—</span>{{end}}</td>
         <td>{{.Username}}</td>
         <td>{{.Status}}</td>
+        <td>{{.JoinedAt}}</td>
+        <td>{{.LastLogin}}</td>
+        <td>
+          <button type="button" class="ghost reset-button" data-user-id="{{.ID}}" data-user-email="{{.Email}}" data-username="{{.Username}}">Reset</button>
+        </td>
       </tr>
       {{end}}
     </tbody>
   </table>
+  {{if and (not .Users) .Query}}
+    <p class="muted">No users match "{{.Query}}".</p>
+  {{end}}
 </div>
+
+<dialog id="reset-dialog" class="modal">
+  <form method="post" action="/admin/users/reset" id="reset-form">
+    <div class="modal-header">
+      <h2>Reset Password</h2>
+      <p class="muted">Choose how to deliver a one-time reset link.</p>
+    </div>
+    <div class="modal-body stack">
+      <input type="hidden" name="user_id" id="reset-user-id" />
+      <input type="hidden" name="q" value="{{.Query}}" />
+      <input type="hidden" name="action" id="reset-action" value="send_user" />
+
+      <div>
+        <div class="label">User</div>
+        <div class="pill" id="reset-user-label">User</div>
+      </div>
+
+      <label class="radio-row">
+        <input type="radio" name="mode" value="send_user" checked />
+        <span>Send reset link to the user's email</span>
+      </label>
+      <div class="inline-note" id="reset-user-email"></div>
+
+      <label class="radio-row">
+        <input type="radio" name="mode" value="send_other" />
+        <span>Send reset link to another email</span>
+      </label>
+      <input name="deliver_to" id="reset-deliver-to" type="email" placeholder="other@example.com" />
+
+      <label class="radio-row">
+        <input type="radio" name="mode" value="update_email" />
+        <span>Update the user's email</span>
+      </label>
+      <input name="new_email" id="reset-new-email" type="email" placeholder="new@email.com" />
+
+      {{if .HasSMTP}}
+      <label>
+        <div class="label">From Alias</div>
+        <select name="from_alias" id="reset-from-alias">
+          {{range .FromAliases}}
+            <option value="{{.}}">{{.}}</option>
+          {{end}}
+        </select>
+      </label>
+      {{else}}
+      <div class="pill-warning">SMTP not configured. Set it up in Email settings.</div>
+      {{end}}
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="ghost" id="reset-cancel">Cancel</button>
+      <button type="submit" id="reset-submit">Send Reset</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+(() => {
+  const dialog = document.getElementById("reset-dialog");
+  const form = document.getElementById("reset-form");
+  const userId = document.getElementById("reset-user-id");
+  const userLabel = document.getElementById("reset-user-label");
+  const userEmail = document.getElementById("reset-user-email");
+  const deliverTo = document.getElementById("reset-deliver-to");
+  const newEmail = document.getElementById("reset-new-email");
+  const actionInput = document.getElementById("reset-action");
+  const cancelBtn = document.getElementById("reset-cancel");
+  const submitBtn = document.getElementById("reset-submit");
+  const modeInputs = Array.from(form.querySelectorAll("input[name='mode']"));
+  const hasSMTP = {{if .HasSMTP}}true{{else}}false{{end}};
+
+  const setMode = (mode) => {
+    actionInput.value = mode;
+    const sendMode = mode === "send_user" || mode === "send_other";
+    deliverTo.disabled = mode !== "send_other";
+    deliverTo.required = mode === "send_other";
+    newEmail.disabled = mode !== "update_email";
+    newEmail.required = mode === "update_email";
+    submitBtn.textContent = sendMode ? "Send Reset" : "Update Email";
+  };
+
+  const openDialog = (button) => {
+    const id = button.dataset.userId;
+    const email = button.dataset.userEmail;
+    const name = button.dataset.username || "User";
+    userId.value = id;
+    userLabel.textContent = `@${name}`;
+    userEmail.textContent = email ? `Current email: ${email}` : "No email on file.";
+    deliverTo.value = "";
+    newEmail.value = email || "";
+    modeInputs[0].checked = true;
+    setMode("send_user");
+    submitBtn.disabled = !hasSMTP;
+    if (dialog.showModal) {
+      dialog.showModal();
+    } else {
+      dialog.setAttribute("open", "true");
+    }
+  };
+
+  document.querySelectorAll(".reset-button").forEach((btn) => {
+    btn.addEventListener("click", () => openDialog(btn));
+  });
+  modeInputs.forEach((input) => {
+    input.addEventListener("change", (event) => {
+      setMode(event.target.value);
+      if (event.target.value === "update_email") {
+        submitBtn.disabled = false;
+      } else {
+        submitBtn.disabled = !hasSMTP;
+      }
+    });
+  });
+  cancelBtn.addEventListener("click", () => {
+    if (dialog.close) {
+      dialog.close();
+    } else {
+      dialog.removeAttribute("open");
+    }
+  });
+})();
+</script>
 {{end}}
 {{define "users.html"}}{{template "layout" .}}{{end}}

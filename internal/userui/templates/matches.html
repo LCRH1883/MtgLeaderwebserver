@@ -1,0 +1,43 @@
+{{define "content"}}
+<section class="stack">
+  <div>
+    <p class="eyebrow">Matches</p>
+    <h1>Recent games in your pod.</h1>
+    <p class="lead">Review formats, winners, and pace from your latest matches.</p>
+  </div>
+</section>
+
+{{if .Error}}
+  <div class="alert">{{.Error}}</div>
+{{end}}
+{{if .Notice}}
+  <div class="notice">{{.Notice}}</div>
+{{end}}
+
+<section class="panel">
+  <div class="panel-header">
+    <h2>Recent matches</h2>
+    <div class="muted">{{len .Matches}} total</div>
+  </div>
+  {{if .Matches}}
+    <div class="list">
+      {{range .Matches}}
+        <a class="list-row match-row" href="/app/matches/{{.ID}}">
+          <div>
+            <div class="match-title">{{.PlayedAt}}</div>
+            <div class="muted small">{{.Format}} · {{.Players}} players</div>
+          </div>
+          <div class="stats-inline">
+            <span class="pill">{{.Duration}}</span>
+            <span class="pill">{{.TurnCount}} turns</span>
+            <span class="pill">Winner {{.Winner}}</span>
+          </div>
+        </a>
+      {{end}}
+    </div>
+  {{else}}
+    <div class="empty muted">No matches yet.</div>
+  {{end}}
+</section>
+{{end}}
+{{define "matches.html"}}{{template "layout" .}}{{end}}

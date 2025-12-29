@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -17,10 +18,13 @@ type Opts struct {
 
 	Auth         *service.AuthService
 	Admin        *service.AdminService
+	Reset        *service.PasswordResetService
+	Email        *service.EmailService
 	CookieCodec  auth.CookieCodec
 	CookieSecure bool
 	SessionTTL   time.Duration
 	AdminEmails  []string
+	PublicURL    *url.URL
 }
 
 func New(opts Opts) http.Handler {
@@ -45,10 +49,13 @@ func New(opts Opts) http.Handler {
 		logger:       logger,
 		authSvc:      opts.Auth,
 		adminSvc:     opts.Admin,
+		resetSvc:     opts.Reset,
+		emailSvc:     opts.Email,
 		cookieCodec:  opts.CookieCodec,
 		cookieSecure: opts.CookieSecure,
 		sessionTTL:   opts.SessionTTL,
 		adminEmails:  adminSet,
+		publicURL:    opts.PublicURL,
 	}
 
 	t, err := parseTemplates()
@@ -67,6 +74,11 @@ func New(opts Opts) http.Handler {
 	mux.HandleFunc("POST /admin/login", app.handleLoginPost)
 	mux.HandleFunc("POST /admin/logout", app.handleLogoutPost)
 	mux.HandleFunc("GET /admin/users", app.requireAdmin(app.handleUsersList))
+	mux.HandleFunc("POST /admin/users/reset", app.requireAdmin(app.handleUserPasswordReset))
+	mux.HandleFunc("GET /admin/password", app.requireAdmin(app.handlePasswordGet))
+	mux.HandleFunc("POST /admin/password", app.requireAdmin(app.handlePasswordPost))
+	mux.HandleFunc("GET /admin/email", app.requireAdmin(app.handleEmailGet))
+	mux.HandleFunc("POST /admin/email", app.requireAdmin(app.handleEmailPost))
 	staticFS, err := fs.Sub(assets, "static")
 	if err != nil {
 		logger.Error("adminui: static fs setup failed", "err", err)
@@ -86,11 +98,14 @@ type app struct {
 
 	authSvc  *service.AuthService
 	adminSvc *service.AdminService
+	resetSvc *service.PasswordResetService
+	emailSvc *service.EmailService
 
 	cookieCodec  auth.CookieCodec
 	cookieSecure bool
 	sessionTTL   time.Duration
 	adminEmails  map[string]bool
+	publicURL    *url.URL
 
 	templates *templates
 }

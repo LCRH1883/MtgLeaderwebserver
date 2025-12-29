@@ -1,0 +1,76 @@
+{{define "login.html"}}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>{{.Title}}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/app/static/app.css?v=7" />
+  </head>
+  <body class="auth-page">
+    <header class="auth-header">
+      <a class="auth-brand" href="/">
+        <span class="brand-mark">MTG</span>
+        <span>
+          <span class="brand-title">MTG Leader</span>
+          <span class="brand-sub">Magic: The Gathering playgroup toolkit</span>
+        </span>
+      </a>
+    </header>
+    <main class="auth-shell">
+      <section class="auth-card stack">
+        <div>
+          <p class="eyebrow">Welcome back</p>
+          <h1>Sign in to MTG Friends.</h1>
+          <p class="lead">Use your email to manage friends, matches, and requests.</p>
+        </div>
+        {{if .Notice}}
+          <div class="notice">{{.Notice}}</div>
+        {{end}}
+        {{if .Error}}
+          <div class="alert">{{.Error}}</div>
+        {{end}}
+        <form method="post" action="/app/login" class="stack">
+          <label class="label" for="email">Email</label>
+          <input id="email" name="email" type="email" autocomplete="email" required value="{{.Email}}" />
+          <label class="label" for="password">Password</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" required />
+          <button type="submit">Sign in</button>
+        </form>
+        <div class="muted small">New here? <a class="inline-link" href="/app/register">Create an account</a>.</div>
+      </section>
+      <aside class="auth-panel">
+        <div class="auth-panel-inner stack">
+          <div>
+            <p class="eyebrow">Community hub</p>
+            <h2>Build your pod.</h2>
+            <p class="lead">Keep tabs on the players you meet at every table.</p>
+          </div>
+          <ul class="feature-list">
+            <li><span class="feature-tag">01</span>Send friend requests in seconds.</li>
+            <li><span class="feature-tag">02</span>Track matches and spotlight wins.</li>
+            <li><span class="feature-tag">03</span>Stay signed in across devices.</li>
+          </ul>
+          <div class="auth-panel-footer small">Need a new account? <a class="inline-link" href="/app/register">Create one here</a>.</div>
+        </div>
+      </aside>
+    </main>
+    <script>
+      (() => {
+        const root = document.documentElement;
+        const storageKey = "mtg-theme";
+        try {
+          const stored = localStorage.getItem(storageKey);
+          if (stored === "dark" || stored === "light") {
+            root.setAttribute("data-theme", stored);
+            document.body.setAttribute("data-theme", stored);
+          }
+        } catch (err) {}
+      })();
+    </script>
+  </body>
+</html>
+{{end}}

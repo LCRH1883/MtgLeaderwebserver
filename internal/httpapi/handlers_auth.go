@@ -3,6 +3,7 @@ package httpapi
 import (
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"MtgLeaderwebserver/internal/auth"
@@ -59,6 +60,10 @@ type loginRequest struct {
 	Password string `json:"password"`
 }
 
+type idTokenRequest struct {
+	IDToken string `json:"id_token"`
+}
+
 func (a *api) handleAuthLogin(w http.ResponseWriter, r *http.Request) {
 	var req loginRequest
 	if err := decodeJSON(w, r, &req); err != nil {
@@ -86,6 +91,68 @@ func (a *api) handleAuthLogin(w http.ResponseWriter, r *http.Request) {
 			WriteDomainError(w, err)
 			return
 		}
+		WriteDomainError(w, err)
+		return
+	}
+
+	cookieValue := a.cookieCodec.EncodeSessionID(sessID)
+	auth.SetSessionCookie(w, cookieValue, a.sessionTTL, a.cookieSecure)
+
+	writeUser(w, http.StatusOK, u)
+}
+
+func (a *api) handleAuthLoginGoogle(w http.ResponseWriter, r *http.Request) {
+	var req idTokenRequest
+	if err := decodeJSON(w, r, &req); err != nil {
+		WriteError(w, http.StatusBadRequest, "bad_json", "invalid json")
+		return
+	}
+	if strings.TrimSpace(req.IDToken) == "" {
+		WriteDomainError(w, domain.NewValidationError(map[string]string{"id_token": "required"}))
+		return
+	}
+
+	now := time.Now()
+	ip := clientIP(r)
+	if !a.loginLimiter.Allow("google:ip:"+ip, now) {
+		WriteError(w, http.StatusTooManyRequests, "rate_limited", "too many attempts")
+		return
+	}
+
+	userAgent := r.UserAgent()
+	u, sessID, err := a.authSvc.LoginWithGoogle(r.Context(), req.IDToken, ip, userAgent)
+	if err != nil {
+		WriteDomainError(w, err)
+		return
+	}
+
+	cookieValue := a.cookieCodec.EncodeSessionID(sessID)
+	auth.SetSessionCookie(w, cookieValue, a.sessionTTL, a.cookieSecure)
+
+	writeUser(w, http.StatusOK, u)
+}
+
+func (a *api) handleAuthLoginApple(w http.ResponseWriter, r *http.Request) {
+	var req idTokenRequest
+	if err := decodeJSON(w, r, &req); err != nil {
+		WriteError(w, http.StatusBadRequest, "bad_json", "invalid json")
+		return
+	}
+	if strings.TrimSpace(req.IDToken) == "" {
+		WriteDomainError(w, domain.NewValidationError(map[string]string{"id_token": "required"}))
+		return
+	}
+
+	now := time.Now()
+	ip := clientIP(r)
+	if !a.loginLimiter.Allow("apple:ip:"+ip, now) {
+		WriteError(w, http.StatusTooManyRequests, "rate_limited", "too many attempts")
+		return
+	}
+
+	userAgent := r.UserAgent()
+	u, sessID, err := a.authSvc.LoginWithApple(r.Context(), req.IDToken, ip, userAgent)
+	if err != nil {
 		WriteDomainError(w, err)
 		return
 	}

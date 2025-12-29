@@ -13,6 +13,7 @@ type FriendshipsStore interface {
 	CreateRequest(ctx context.Context, requesterID, addresseeID string) (string, time.Time, error)
 	Accept(ctx context.Context, requestID, addresseeID string, when time.Time) error
 	Decline(ctx context.Context, requestID, addresseeID string, when time.Time) error
+	Cancel(ctx context.Context, requestID, requesterID string) error
 	ListOverview(ctx context.Context, userID string) (domain.FriendsOverview, error)
 	AreFriends(ctx context.Context, userA, userB string) (bool, error)
 }
@@ -75,6 +76,10 @@ func (s *FriendsService) Decline(ctx context.Context, addresseeID, requestID str
 		s.Now = time.Now
 	}
 	return s.Friendships.Decline(ctx, requestID, addresseeID, s.Now())
+}
+
+func (s *FriendsService) Cancel(ctx context.Context, requesterID, requestID string) error {
+	return s.Friendships.Cancel(ctx, requestID, requesterID)
 }
 
 func (s *FriendsService) AreFriends(ctx context.Context, userA, userB string) (bool, error) {

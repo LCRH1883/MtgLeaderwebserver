@@ -19,9 +19,14 @@ type Config struct {
 	LogLevel     string
 	AdminEmails  []string
 
+	GoogleWebClientID string
+	AppleServiceID    string
+
 	AdminBootstrapEmail    string
 	AdminBootstrapUsername string
 	AdminBootstrapPassword string
+
+	AvatarDir string
 }
 
 func Load() (Config, error) {
@@ -30,11 +35,17 @@ func Load() (Config, error) {
 
 func LoadFromEnv(getenv func(string) string) (Config, error) {
 	cfg := Config{
-		Env:          getenv("APP_ENV"),
-		Addr:         getenv("APP_ADDR"),
-		DBDSN:        getenv("APP_DB_DSN"),
-		LogLevel:     getenv("APP_LOG_LEVEL"),
-		CookieSecret: getenv("APP_COOKIE_SECRET"),
+		Env:               getenv("APP_ENV"),
+		Addr:              getenv("APP_ADDR"),
+		DBDSN:             getenv("APP_DB_DSN"),
+		LogLevel:          getenv("APP_LOG_LEVEL"),
+		CookieSecret:      getenv("APP_COOKIE_SECRET"),
+		GoogleWebClientID: strings.TrimSpace(getenv("GOOGLE_WEB_CLIENT_ID")),
+		AppleServiceID:    strings.TrimSpace(getenv("APPLE_SERVICE_ID")),
+	}
+	cfg.AvatarDir = strings.TrimSpace(getenv("APP_AVATAR_DIR"))
+	if cfg.AvatarDir == "" {
+		cfg.AvatarDir = "data/avatars"
 	}
 
 	if cfg.Env == "" {
@@ -85,6 +96,11 @@ func LoadFromEnv(getenv func(string) string) (Config, error) {
 	cfg.AdminBootstrapEmail = strings.TrimSpace(strings.ToLower(getenv("APP_ADMIN_BOOTSTRAP_EMAIL")))
 	cfg.AdminBootstrapUsername = strings.TrimSpace(getenv("APP_ADMIN_BOOTSTRAP_USERNAME"))
 	cfg.AdminBootstrapPassword = getenv("APP_ADMIN_BOOTSTRAP_PASSWORD")
+	if len(cfg.AdminEmails) == 0 && cfg.AdminBootstrapEmail == "" && cfg.AdminBootstrapUsername == "" && cfg.AdminBootstrapPassword == "" {
+		cfg.AdminBootstrapEmail = "lh@intagri.io"
+		cfg.AdminBootstrapUsername = "admin"
+		cfg.AdminBootstrapPassword = "admin"
+	}
 
 	if cfg.AdminBootstrapPassword != "" && cfg.AdminBootstrapEmail == "" {
 		return Config{}, errors.New("APP_ADMIN_BOOTSTRAP_EMAIL: required when APP_ADMIN_BOOTSTRAP_PASSWORD is set")

@@ -1,0 +1,40 @@
+{{define "content"}}
+<section class="stack">
+  <div>
+    <p class="eyebrow">Welcome</p>
+    <h1>Your MTG Leader home base.</h1>
+    <p class="lead">Jump into friends, stats, and more as we expand the platform.</p>
+  </div>
+</section>
+
+{{if .Error}}
+  <div class="alert">{{.Error}}</div>
+{{end}}
+{{if .Notice}}
+  <div class="notice">{{.Notice}}</div>
+{{end}}
+
+<section class="home-grid">
+  <a class="home-card" href="/app/friends">
+    <div class="home-card-title">Friends</div>
+    <div class="home-card-sub">Search players, manage requests, and keep your pod together.</div>
+    <div class="home-card-cta">Open Friends</div>
+  </a>
+  <a class="home-card" href="/app/matches">
+    <div class="home-card-title">Matches</div>
+    <div class="home-card-sub">Review recent games, winners, and placements.</div>
+    <div class="home-card-cta">View Matches</div>
+  </a>
+  <a class="home-card" href="/app/stats">
+    <div class="home-card-title">Stats</div>
+    <div class="home-card-sub">Track win rates, formats, and pace.</div>
+    <div class="home-card-cta">View Stats</div>
+  </a>
+  <a class="home-card" href="/app/profile">
+    <div class="home-card-title">Profile</div>
+    <div class="home-card-sub">Update your name and avatar before you join a pod.</div>
+    <div class="home-card-cta">Edit Profile</div>
+  </a>
+</section>
+{{end}}
+{{define "home.html"}}{{template "layout" .}}{{end}}

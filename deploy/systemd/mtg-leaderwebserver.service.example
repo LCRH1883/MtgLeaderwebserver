@@ -8,6 +8,7 @@ User=mtg
 Group=mtg
 WorkingDirectory=/opt/mtgleaderwebserver
 EnvironmentFile=/etc/mtgleaderwebserver/mtgleaderwebserver.env
+# Example env file: deploy/mtgleaderwebserver.env.example
 ExecStart=/opt/mtgleaderwebserver/server
 Restart=on-failure
 RestartSec=2
@@ -17,8 +18,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/mtgleaderwebserver
+ReadWritePaths=/opt/mtgleaderwebserver /var/lib/mtgleader
 
 [Install]
 WantedBy=multi-user.target
-

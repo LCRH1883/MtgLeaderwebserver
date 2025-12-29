@@ -9,6 +9,7 @@
 /build/
 /.tooling/
 /.pgdata/
+/data/
 
 cookies.txt
 

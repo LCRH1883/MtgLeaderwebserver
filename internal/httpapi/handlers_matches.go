@@ -11,9 +11,14 @@ import (
 )
 
 type createMatchRequest struct {
-	PlayerIDs []string `json:"player_ids"`
-	WinnerID  string   `json:"winner_id"`
-	PlayedAt  string   `json:"played_at"`
+	PlayerIDs            []string                  `json:"player_ids"`
+	WinnerID             string                    `json:"winner_id"`
+	PlayedAt             string                    `json:"played_at"`
+	Format               string                    `json:"format"`
+	TotalDurationSeconds int                       `json:"total_duration_seconds"`
+	TurnCount            int                       `json:"turn_count"`
+	ClientRef            string                    `json:"client_ref"`
+	Results              []domain.MatchResultInput `json:"results"`
 }
 
 type createMatchResponse struct {
@@ -44,9 +49,14 @@ func (a *api) handleMatchesCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	id, err := a.matchSvc.CreateMatch(r.Context(), u.ID, service.CreateMatchParams{
-		PlayedAt:  playedAt,
-		WinnerID:  strings.TrimSpace(req.WinnerID),
-		PlayerIDs: req.PlayerIDs,
+		PlayedAt:             playedAt,
+		WinnerID:             strings.TrimSpace(req.WinnerID),
+		PlayerIDs:            req.PlayerIDs,
+		Format:               domain.GameFormat(strings.TrimSpace(req.Format)),
+		TotalDurationSeconds: req.TotalDurationSeconds,
+		TurnCount:            req.TurnCount,
+		ClientRef:            strings.TrimSpace(req.ClientRef),
+		Results:              req.Results,
 	})
 	if err != nil {
 		WriteDomainError(w, err)
@@ -77,4 +87,26 @@ func (a *api) handleMatchesList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	WriteJSON(w, http.StatusOK, matches)
+}
+
+func (a *api) handleMatchesGet(w http.ResponseWriter, r *http.Request) {
+	u, ok := CurrentUser(r.Context())
+	if !ok {
+		WriteDomainError(w, domain.ErrUnauthorized)
+		return
+	}
+
+	matchID := strings.TrimSpace(r.PathValue("id"))
+	if matchID == "" {
+		WriteDomainError(w, domain.NewValidationError(map[string]string{"id": "required"}))
+		return
+	}
+
+	match, err := a.matchSvc.GetMatch(r.Context(), u.ID, matchID)
+	if err != nil {
+		WriteDomainError(w, err)
+		return
+	}
+
+	WriteJSON(w, http.StatusOK, match)
 }

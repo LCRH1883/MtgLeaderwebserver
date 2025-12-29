@@ -10,24 +10,56 @@ type templates struct {
 	login     *template.Template
 	dashboard *template.Template
 	users     *template.Template
+	password  *template.Template
+	email     *template.Template
 	errorT    *template.Template
 }
 
 type viewData struct {
-	Title string
-	Error string
+	Title   string
+	Error   string
+	Success string
 }
 
 type usersViewData struct {
-	Title string
-	Users []userRow
+	Title       string
+	Users       []userRow
+	Query       string
+	Error       string
+	Notice      string
+	FromAliases []string
+	HasSMTP     bool
+}
+
+type passwordViewData struct {
+	Title   string
+	Error   string
+	Success string
+	Email   string
+}
+
+type smtpViewData struct {
+	Title       string
+	Error       string
+	Success     string
+	Host        string
+	Port        int
+	Username    string
+	TLSMode     string
+	FromName    string
+	FromEmail   string
+	AliasEmails string
+	HasPassword bool
+	TestEmail   string
 }
 
 type userRow struct {
-	ID       string
-	Email    string
-	Username string
-	Status   string
+	ID        string
+	Email     string
+	Username  string
+	Status    string
+	JoinedAt  string
+	LastLogin string
 }
 
 func parseTemplates() (*templates, error) {
@@ -51,12 +83,20 @@ func parseTemplates() (*templates, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parse users: %w", err)
 	}
+	password, err := parse("templates/layout.html", "templates/password.html")
+	if err != nil {
+		return nil, fmt.Errorf("parse password: %w", err)
+	}
+	emailT, err := parse("templates/layout.html", "templates/email.html")
+	if err != nil {
+		return nil, fmt.Errorf("parse email: %w", err)
+	}
 	errorT, err := parse("templates/error.html")
 	if err != nil {
 		return nil, fmt.Errorf("parse error: %w", err)
 	}
 
-	return &templates{login: login, dashboard: dashboard, users: users, errorT: errorT}, nil
+	return &templates{login: login, dashboard: dashboard, users: users, password: password, email: emailT, errorT: errorT}, nil
 }
 
 func (t *templates) renderLogin(w http.ResponseWriter, status int, data any) {
@@ -75,6 +115,18 @@ func (t *templates) renderUsers(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
 	_ = t.users.ExecuteTemplate(w, "users.html", data)
+}
+
+func (t *templates) renderPassword(w http.ResponseWriter, status int, data any) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
+	_ = t.password.ExecuteTemplate(w, "password.html", data)
+}
+
+func (t *templates) renderEmail(w http.ResponseWriter, status int, data any) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
+	_ = t.email.ExecuteTemplate(w, "email.html", data)
 }
 
 func (t *templates) renderErrorPage(w http.ResponseWriter, status int, data any) {

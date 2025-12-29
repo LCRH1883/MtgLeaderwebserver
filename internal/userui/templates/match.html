@@ -1,0 +1,81 @@
+{{define "content"}}
+<section class="stack">
+  <div>
+    <p class="eyebrow">Match detail</p>
+    <h1>{{.PlayedAt}}</h1>
+    <p class="lead">{{.Match.Format}} · {{len .Match.Players}} players</p>
+  </div>
+</section>
+
+{{if .Error}}
+  <div class="alert">{{.Error}}</div>
+{{end}}
+
+<section class="panel">
+  <div class="panel-header">
+    <h2>Summary</h2>
+    <div class="muted">Completed match overview</div>
+  </div>
+  <div class="match-meta">
+    <div class="match-stat">
+      <div class="stat-label">Duration</div>
+      <div class="stat-value">{{.Duration}}</div>
+    </div>
+    <div class="match-stat">
+      <div class="stat-label">Turns</div>
+      <div class="stat-value">{{.Match.TurnCount}}</div>
+    </div>
+    <div class="match-stat">
+      <div class="stat-label">Avg turn</div>
+      <div class="stat-value">{{.AvgTurn}}</div>
+    </div>
+    <div class="match-stat">
+      <div class="stat-label">Winner</div>
+      <div class="stat-value">
+        {{if .Match.WinnerID}}
+          {{range .Match.Players}}
+            {{if .IsWinner}}@{{.User.Username}}{{end}}
+          {{end}}
+        {{else}}
+          —
+        {{end}}
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-header">
+    <h2>Placements</h2>
+    <div class="muted">Ordered by rank</div>
+  </div>
+  {{if .Match.Players}}
+    <div class="list">
+      {{range .Match.Players}}
+        <div class="list-row match-player">
+          <div class="match-player-info">
+            <div class="match-player-name">@{{.User.Username}}</div>
+            <div class="muted small">{{if .IsWinner}}Winner{{else}}Player{{end}}</div>
+          </div>
+          <div class="stats-inline">
+            {{if .Rank}}
+              <span class="pill {{if .IsWinner}}success{{end}}">Rank {{.Rank}}</span>
+            {{else}}
+              <span class="pill">Rank —</span>
+            {{end}}
+            {{if .EliminationTurn}}
+              <span class="pill">Turn {{.EliminationTurn}}</span>
+            {{end}}
+            {{if .EliminationBatch}}
+              <span class="pill">Batch {{.EliminationBatch}}</span>
+            {{end}}
+          </div>
+        </div>
+      {{end}}
+    </div>
+  {{else}}
+    <div class="empty muted">No player results yet.</div>
+  {{end}}
+</section>
+{{end}}
+{{define "match.html"}}{{template "layout" .}}{{end}}

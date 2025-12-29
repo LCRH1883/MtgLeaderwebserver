@@ -23,6 +23,25 @@ func NewFriendshipsStore(pool *pgxpool.Pool) *FriendshipsStore {
 }
 
 func (s *FriendshipsStore) CreateRequest(ctx context.Context, requesterID, addresseeID string) (string, time.Time, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return "", time.Time{}, fmt.Errorf("begin create friend request: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	const clearDeclined = `
+		DELETE FROM friendships
+		WHERE status = 'declined'
+		  AND (
+		    (requester_id = $1 AND addressee_id = $2)
+		    OR
+		    (requester_id = $2 AND addressee_id = $1)
+		  )
+	`
+	if _, err := tx.Exec(ctx, clearDeclined, requesterID, addresseeID); err != nil {
+		return "", time.Time{}, fmt.Errorf("clear declined requests: %w", err)
+	}
+
 	const q = `
 		INSERT INTO friendships (requester_id, addressee_id, status)
 		VALUES ($1, $2, 'pending')
@@ -33,13 +52,17 @@ func (s *FriendshipsStore) CreateRequest(ctx context.Context, requesterID, addre
 		idUUID    pgtype.UUID
 		createdAt time.Time
 	)
-	err := s.pool.QueryRow(ctx, q, requesterID, addresseeID).Scan(&idUUID, &createdAt)
+	err = tx.QueryRow(ctx, q, requesterID, addresseeID).Scan(&idUUID, &createdAt)
 	if err != nil {
 		var pgerr *pgconn.PgError
 		if errors.As(err, &pgerr) && pgerr.Code == "23505" && pgerr.ConstraintName == "friendships_pair_uq" {
 			return "", time.Time{}, domain.ErrFriendshipExists
 		}
 		return "", time.Time{}, fmt.Errorf("create friend request: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return "", time.Time{}, fmt.Errorf("commit friend request: %w", err)
 	}
 
 	return uuidOrEmpty(idUUID), createdAt, nil
@@ -62,14 +85,29 @@ func (s *FriendshipsStore) Accept(ctx context.Context, requestID, addresseeID st
 }
 
 func (s *FriendshipsStore) Decline(ctx context.Context, requestID, addresseeID string, when time.Time) error {
+	_ = when
 	const q = `
-		UPDATE friendships
-		SET status = 'declined', responded_at = $3
+		DELETE FROM friendships
 		WHERE id = $1 AND addressee_id = $2 AND status = 'pending'
 	`
-	ct, err := s.pool.Exec(ctx, q, requestID, addresseeID, when)
+	ct, err := s.pool.Exec(ctx, q, requestID, addresseeID)
 	if err != nil {
 		return fmt.Errorf("decline friend request: %w", err)
+	}
+	if ct.RowsAffected() == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
+func (s *FriendshipsStore) Cancel(ctx context.Context, requestID, requesterID string) error {
+	const q = `
+		DELETE FROM friendships
+		WHERE id = $1 AND requester_id = $2 AND status = 'pending'
+	`
+	ct, err := s.pool.Exec(ctx, q, requestID, requesterID)
+	if err != nil {
+		return fmt.Errorf("cancel friend request: %w", err)
 	}
 	if ct.RowsAffected() == 0 {
 		return domain.ErrNotFound
@@ -100,7 +138,7 @@ func (s *FriendshipsStore) ListOverview(ctx context.Context, userID string) (dom
 
 func (s *FriendshipsStore) listFriends(ctx context.Context, userID string) ([]domain.UserSummary, error) {
 	const q = `
-		SELECT u.id, u.username
+		SELECT u.id, u.username, u.display_name, u.avatar_path, u.avatar_updated_at
 		FROM friendships f
 		JOIN users u ON u.id = CASE
 			WHEN f.requester_id = $1 THEN f.addressee_id
@@ -118,12 +156,23 @@ func (s *FriendshipsStore) listFriends(ctx context.Context, userID string) ([]do
 
 	var out []domain.UserSummary
 	for rows.Next() {
-		var idUUID pgtype.UUID
-		var username string
-		if err := rows.Scan(&idUUID, &username); err != nil {
+		var (
+			idUUID        pgtype.UUID
+			username      string
+			displayName   pgtype.Text
+			avatarPath    pgtype.Text
+			avatarUpdated pgtype.Timestamptz
+		)
+		if err := rows.Scan(&idUUID, &username, &displayName, &avatarPath, &avatarUpdated); err != nil {
 			return nil, fmt.Errorf("scan friend: %w", err)
 		}
-		out = append(out, domain.UserSummary{ID: uuidOrEmpty(idUUID), Username: username})
+		out = append(out, domain.UserSummary{
+			ID:              uuidOrEmpty(idUUID),
+			Username:        username,
+			DisplayName:     textOrEmpty(displayName),
+			AvatarPath:      textOrEmpty(avatarPath),
+			AvatarUpdatedAt: timestamptzPtr(avatarUpdated),
+		})
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("list friends: %w", err)

@@ -1,0 +1,68 @@
+{{define "register.html"}}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>{{.Title}}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/app/static/app.css?v=7" />
+  </head>
+  <body class="auth-page">
+    <main class="auth-shell">
+      <section class="auth-card stack">
+        <div>
+          <p class="eyebrow">Create account</p>
+          <h1>Join MTG Friends.</h1>
+          <p class="lead">Pick a username so other players can find you.</p>
+        </div>
+        {{if .Error}}
+          <div class="alert">{{.Error}}</div>
+        {{end}}
+        <form method="post" action="/app/register" class="stack">
+          <label class="label" for="email">Email</label>
+          <input id="email" name="email" type="email" autocomplete="email" required value="{{.Email}}" />
+          <label class="label" for="username">Username</label>
+          <input id="username" name="username" type="text" autocomplete="username" required value="{{.Username}}" />
+          <div class="hint">3-24 characters, letters, numbers, underscore.</div>
+          <label class="label" for="password">Password</label>
+          <input id="password" name="password" type="password" autocomplete="new-password" required />
+          <div class="hint">Minimum 12 characters.</div>
+          <button type="submit">Create account</button>
+        </form>
+        <div class="muted small">Already have an account? <a class="inline-link" href="/app/login">Sign in</a>.</div>
+      </section>
+      <aside class="auth-panel">
+        <div class="auth-panel-inner stack">
+          <div>
+            <p class="eyebrow">Set up your deck</p>
+            <h2>Find your table.</h2>
+            <p class="lead">Create a profile that makes it easy to reconnect after every match.</p>
+          </div>
+          <ul class="feature-list">
+            <li><span class="feature-tag">01</span>Custom username for quick searches.</li>
+            <li><span class="feature-tag">02</span>Manage friend requests with ease.</li>
+            <li><span class="feature-tag">03</span>Track stats with a clean dashboard.</li>
+          </ul>
+          <div class="auth-panel-footer small">Already active? <a class="inline-link" href="/app/login">Return to sign in</a>.</div>
+        </div>
+      </aside>
+    </main>
+    <script>
+      (() => {
+        const root = document.documentElement;
+        const storageKey = "mtg-theme";
+        try {
+          const stored = localStorage.getItem(storageKey);
+          if (stored === "dark" || stored === "light") {
+            root.setAttribute("data-theme", stored);
+            document.body.setAttribute("data-theme", stored);
+          }
+        } catch (err) {}
+      })();
+    </script>
+  </body>
+</html>
+{{end}}
