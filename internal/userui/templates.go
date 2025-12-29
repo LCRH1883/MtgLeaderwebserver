@@ -13,6 +13,9 @@ type templates struct {
 	register *template.Template
 	home     *template.Template
 	friends  *template.Template
+	stats    *template.Template
+	matches  *template.Template
+	match    *template.Template
 	profile  *template.Template
 	reset    *template.Template
 	errorT   *template.Template
@@ -59,6 +62,7 @@ type friendsViewData struct {
 	Query    string
 	Results  []searchResult
 	Friends  []friendCard
+	Stats    []domain.FriendStatsListItem
 	Incoming []domain.FriendRequest
 	Outgoing []domain.FriendRequest
 	Error    string
@@ -72,6 +76,58 @@ type profileViewData struct {
 	AvatarURL   string
 	Error       string
 	Notice      string
+}
+
+type statsViewData struct {
+	Title             string
+	User              domain.User
+	Summary           domain.StatsSummary
+	Formats           []formatStatRow
+	MostOftenBeat     *opponentStatRow
+	MostOftenBeatsYou *opponentStatRow
+	Error             string
+	Notice            string
+}
+
+type formatStatRow struct {
+	Format          string
+	MatchesPlayed   int
+	Wins            int
+	Losses          int
+	AvgTurnSeconds  int
+}
+
+type opponentStatRow struct {
+	Username string
+	Count    int
+}
+
+type matchesViewData struct {
+	Title   string
+	User    domain.User
+	Matches []matchListItem
+	Error   string
+	Notice  string
+}
+
+type matchListItem struct {
+	ID        string
+	PlayedAt  string
+	Format    string
+	Duration  string
+	TurnCount int
+	Winner    string
+	Players   int
+}
+
+type matchDetailViewData struct {
+	Title      string
+	User       domain.User
+	Match      domain.Match
+	PlayedAt   string
+	Duration   string
+	AvgTurn    string
+	Error      string
 }
 
 type searchResult struct {
@@ -114,6 +170,18 @@ func parseTemplates() (*templates, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parse friends: %w", err)
 	}
+	statsT, err := parse("templates/layout.html", "templates/stats.html")
+	if err != nil {
+		return nil, fmt.Errorf("parse stats: %w", err)
+	}
+	matchesT, err := parse("templates/layout.html", "templates/matches.html")
+	if err != nil {
+		return nil, fmt.Errorf("parse matches: %w", err)
+	}
+	matchT, err := parse("templates/layout.html", "templates/match.html")
+	if err != nil {
+		return nil, fmt.Errorf("parse match: %w", err)
+	}
 	profile, err := parse("templates/layout.html", "templates/profile.html")
 	if err != nil {
 		return nil, fmt.Errorf("parse profile: %w", err)
@@ -127,7 +195,18 @@ func parseTemplates() (*templates, error) {
 		return nil, fmt.Errorf("parse error: %w", err)
 	}
 
-	return &templates{login: login, register: register, home: home, friends: friends, profile: profile, reset: resetT, errorT: errorT}, nil
+	return &templates{
+		login:   login,
+		register: register,
+		home:    home,
+		friends: friends,
+		stats:   statsT,
+		matches: matchesT,
+		match:   matchT,
+		profile: profile,
+		reset:   resetT,
+		errorT:  errorT,
+	}, nil
 }
 
 func (t *templates) renderLogin(w http.ResponseWriter, status int, data any) {
@@ -152,6 +231,24 @@ func (t *templates) renderFriends(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
 	_ = t.friends.ExecuteTemplate(w, "friends.html", data)
+}
+
+func (t *templates) renderStats(w http.ResponseWriter, status int, data any) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
+	_ = t.stats.ExecuteTemplate(w, "stats.html", data)
+}
+
+func (t *templates) renderMatches(w http.ResponseWriter, status int, data any) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
+	_ = t.matches.ExecuteTemplate(w, "matches.html", data)
+}
+
+func (t *templates) renderMatch(w http.ResponseWriter, status int, data any) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
+	_ = t.match.ExecuteTemplate(w, "match.html", data)
 }
 
 func (t *templates) renderProfile(w http.ResponseWriter, status int, data any) {

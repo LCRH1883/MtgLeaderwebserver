@@ -56,3 +56,11 @@ func textArrayOrEmpty(a pgtype.FlatArray[string]) []string {
 	}
 	return []string(a)
 }
+
+func int4Ptr(v pgtype.Int4) *int {
+	if !v.Valid {
+		return nil
+	}
+	i := int(v.Int32)
+	return &i
+}

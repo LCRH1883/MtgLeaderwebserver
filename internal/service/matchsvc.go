@@ -9,8 +9,9 @@ import (
 )
 
 type MatchesStore interface {
-	CreateMatch(ctx context.Context, createdBy string, playedAt *time.Time, winnerID string, playerIDs []string) (string, error)
+	CreateMatch(ctx context.Context, createdBy string, playedAt *time.Time, winnerID string, playerIDs []string, format domain.GameFormat, totalDurationSeconds, turnCount int, clientRef string, results []domain.MatchResultInput) (string, error)
 	ListMatchesForUser(ctx context.Context, userID string, limit int) ([]domain.Match, error)
+	GetMatchForUser(ctx context.Context, userID, matchID string) (domain.Match, error)
 	StatsSummary(ctx context.Context, userID string) (domain.StatsSummary, error)
 	HeadToHead(ctx context.Context, userID, opponentID string) (domain.HeadToHeadStats, error)
 }
@@ -26,9 +27,14 @@ type MatchService struct {
 }
 
 type CreateMatchParams struct {
-	PlayedAt  *time.Time
-	WinnerID  string
-	PlayerIDs []string
+	PlayedAt             *time.Time
+	WinnerID             string
+	PlayerIDs            []string
+	Format               domain.GameFormat
+	TotalDurationSeconds int
+	TurnCount            int
+	ClientRef            string
+	Results              []domain.MatchResultInput
 }
 
 func (s *MatchService) CreateMatch(ctx context.Context, creatorID string, p CreateMatchParams) (string, error) {
@@ -36,25 +42,82 @@ func (s *MatchService) CreateMatch(ctx context.Context, creatorID string, p Crea
 		s.Now = time.Now
 	}
 
-	seen := map[string]bool{creatorID: false}
-	players := make([]string, 0, len(p.PlayerIDs)+1)
-	for _, id := range p.PlayerIDs {
-		id = strings.TrimSpace(id)
-		if id == "" || seen[id] {
-			continue
+	format := normalizeFormat(p.Format)
+	if !validFormat(format) {
+		return "", domain.NewValidationError(map[string]string{"format": "must be commander, brawl, standard, or modern"})
+	}
+	if p.TotalDurationSeconds < 0 {
+		return "", domain.NewValidationError(map[string]string{"total_duration_seconds": "must be >= 0"})
+	}
+	if p.TurnCount < 0 {
+		return "", domain.NewValidationError(map[string]string{"turn_count": "must be >= 0"})
+	}
+
+	var (
+		players  []string
+		winnerID string
+		results  []domain.MatchResultInput
+	)
+
+	if len(p.Results) > 0 {
+		seen := make(map[string]bool, len(p.Results))
+		winnerCount := 0
+		results = make([]domain.MatchResultInput, 0, len(p.Results))
+		for _, res := range p.Results {
+			id := strings.TrimSpace(res.ID)
+			if id == "" {
+				return "", domain.NewValidationError(map[string]string{"results": "each result must include a player id"})
+			}
+			if seen[id] {
+				return "", domain.NewValidationError(map[string]string{"results": "player ids must be unique"})
+			}
+			if res.Rank < 1 {
+				return "", domain.NewValidationError(map[string]string{"results": "rank must be >= 1"})
+			}
+			if res.EliminationTurn != nil && *res.EliminationTurn < 0 {
+				return "", domain.NewValidationError(map[string]string{"results": "elimination_turn must be >= 0"})
+			}
+			if res.EliminationBatch != nil && *res.EliminationBatch < 0 {
+				return "", domain.NewValidationError(map[string]string{"results": "elimination_batch must be >= 0"})
+			}
+			seen[id] = true
+			players = append(players, id)
+			if res.Rank == 1 {
+				winnerCount++
+				winnerID = id
+			}
+			res.ID = id
+			results = append(results, res)
 		}
-		seen[id] = true
-		players = append(players, id)
+		if !seen[creatorID] {
+			return "", domain.NewValidationError(map[string]string{"results": "creator must be included in results"})
+		}
+		if winnerCount != 1 {
+			return "", domain.NewValidationError(map[string]string{"results": "exactly one player must have rank 1"})
+		}
+	} else {
+		seen := map[string]bool{creatorID: false}
+		players = make([]string, 0, len(p.PlayerIDs)+1)
+		for _, id := range p.PlayerIDs {
+			id = strings.TrimSpace(id)
+			if id == "" || seen[id] {
+				continue
+			}
+			seen[id] = true
+			players = append(players, id)
+		}
+		if !seen[creatorID] {
+			players = append(players, creatorID)
+			seen[creatorID] = true
+		}
+		winnerID = strings.TrimSpace(p.WinnerID)
+		if winnerID != "" && !seen[winnerID] {
+			return "", domain.NewValidationError(map[string]string{"winner_id": "winner must be one of the players"})
+		}
 	}
-	if !seen[creatorID] {
-		players = append(players, creatorID)
-		seen[creatorID] = true
-	}
+
 	if len(players) < 2 {
 		return "", domain.NewValidationError(map[string]string{"players": "must have at least 2 players"})
-	}
-	if p.WinnerID != "" && !seen[p.WinnerID] {
-		return "", domain.NewValidationError(map[string]string{"winner_id": "winner must be one of the players"})
 	}
 
 	// Enforce MVP invariant: all players are creator or accepted friends.
@@ -73,11 +136,15 @@ func (s *MatchService) CreateMatch(ctx context.Context, creatorID string, p Crea
 		}
 	}
 
-	return s.Matches.CreateMatch(ctx, creatorID, p.PlayedAt, p.WinnerID, players)
+	return s.Matches.CreateMatch(ctx, creatorID, p.PlayedAt, winnerID, players, format, p.TotalDurationSeconds, p.TurnCount, strings.TrimSpace(p.ClientRef), results)
 }
 
 func (s *MatchService) ListMatches(ctx context.Context, userID string, limit int) ([]domain.Match, error) {
 	return s.Matches.ListMatchesForUser(ctx, userID, limit)
+}
+
+func (s *MatchService) GetMatch(ctx context.Context, userID, matchID string) (domain.Match, error) {
+	return s.Matches.GetMatchForUser(ctx, userID, matchID)
 }
 
 func (s *MatchService) Summary(ctx context.Context, userID string) (domain.StatsSummary, error) {
@@ -86,4 +153,20 @@ func (s *MatchService) Summary(ctx context.Context, userID string) (domain.Stats
 
 func (s *MatchService) HeadToHead(ctx context.Context, userID, opponentID string) (domain.HeadToHeadStats, error) {
 	return s.Matches.HeadToHead(ctx, userID, opponentID)
+}
+
+func normalizeFormat(format domain.GameFormat) domain.GameFormat {
+	if format == "" {
+		return domain.FormatCommander
+	}
+	return format
+}
+
+func validFormat(format domain.GameFormat) bool {
+	switch format {
+	case domain.FormatCommander, domain.FormatBrawl, domain.FormatStandard, domain.FormatModern:
+		return true
+	default:
+		return false
+	}
 }

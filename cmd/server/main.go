@@ -140,6 +140,7 @@ func main() {
 		Auth:         authSvc,
 		Friends:      friendsSvc,
 		Users:        usersSvc,
+		Matches:      matchSvc,
 		Reset:        resetSvc,
 		Profile:      profileSvc,
 		AvatarDir:    cfg.AvatarDir,

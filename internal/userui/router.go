@@ -17,6 +17,7 @@ type Opts struct {
 	Auth         *service.AuthService
 	Friends      *service.FriendsService
 	Users        *service.UsersService
+	Matches      *service.MatchService
 	Reset        *service.PasswordResetService
 	Profile      *service.ProfileService
 	AvatarDir    string
@@ -40,6 +41,7 @@ func New(opts Opts) http.Handler {
 		authSvc:      opts.Auth,
 		friendsSvc:   opts.Friends,
 		usersSvc:     opts.Users,
+		matchSvc:     opts.Matches,
 		resetSvc:     opts.Reset,
 		profileSvc:   opts.Profile,
 		avatarDir:    opts.AvatarDir,
@@ -64,6 +66,9 @@ func New(opts Opts) http.Handler {
 	mux.HandleFunc("GET /app", app.redirectApp)
 	mux.HandleFunc("GET /app/", app.requireAuth(app.handleHome))
 	mux.HandleFunc("GET /app/friends", app.requireAuth(app.handleFriends))
+	mux.HandleFunc("GET /app/stats", app.requireAuth(app.handleStats))
+	mux.HandleFunc("GET /app/matches", app.requireAuth(app.handleMatchesList))
+	mux.HandleFunc("GET /app/matches/{id}", app.requireAuth(app.handleMatchesDetail))
 	mux.HandleFunc("GET /app/login", app.handleLoginGet)
 	mux.HandleFunc("POST /app/login", app.handleLoginPost)
 	mux.HandleFunc("GET /app/register", app.handleRegisterGet)
@@ -103,6 +108,7 @@ type app struct {
 	authSvc    *service.AuthService
 	friendsSvc *service.FriendsService
 	usersSvc   *service.UsersService
+	matchSvc   *service.MatchService
 	resetSvc   *service.PasswordResetService
 	profileSvc *service.ProfileService
 	avatarDir  string

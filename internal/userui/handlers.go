@@ -1,6 +1,7 @@
 package userui
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"image"
@@ -448,6 +449,17 @@ func (a *app) handleFriends(w http.ResponseWriter, r *http.Request) {
 			AvatarURL:   avatarURLForSummary(f),
 		})
 	}
+	if a.matchSvc != nil && len(overview.Friends) > 0 {
+		stats, err := a.friendStats(r.Context(), u.ID, overview.Friends)
+		if err != nil {
+			a.logger.Error("userui: friend stats failed", "err", err)
+			if data.Error == "" {
+				data.Error = "Friend stats unavailable."
+			}
+		} else {
+			data.Stats = stats
+		}
+	}
 	data.Incoming = overview.Incoming
 	data.Outgoing = overview.Outgoing
 
@@ -501,6 +513,135 @@ func (a *app) handleFriends(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.templates.renderFriends(w, http.StatusOK, data)
+}
+
+func (a *app) handleStats(w http.ResponseWriter, r *http.Request) {
+	if a.matchSvc == nil {
+		a.templates.renderError(w, http.StatusServiceUnavailable, "Unavailable", "Stats are unavailable.")
+		return
+	}
+	u, _, ok := a.currentUser(r)
+	if !ok {
+		http.Redirect(w, r, "/app/login", http.StatusFound)
+		return
+	}
+
+	summary, err := a.matchSvc.Summary(r.Context(), u.ID)
+	if err != nil {
+		a.logger.Error("userui: stats summary failed", "err", err)
+		a.templates.renderError(w, http.StatusInternalServerError, "Error", "Failed to load stats")
+		return
+	}
+
+	data := statsViewData{
+		Title:   "Stats",
+		User:    u,
+		Summary: summary,
+		Formats: formatStats(summary.ByFormat),
+		Error:   mapErrorCode(strings.TrimSpace(r.URL.Query().Get("error"))),
+		Notice:  mapNoticeCode(strings.TrimSpace(r.URL.Query().Get("notice"))),
+	}
+	if summary.MostOftenBeat != nil {
+		data.MostOftenBeat = &opponentStatRow{
+			Username: summary.MostOftenBeat.Opponent.Username,
+			Count:    summary.MostOftenBeat.Count,
+		}
+	}
+	if summary.MostOftenBeatsYou != nil {
+		data.MostOftenBeatsYou = &opponentStatRow{
+			Username: summary.MostOftenBeatsYou.Opponent.Username,
+			Count:    summary.MostOftenBeatsYou.Count,
+		}
+	}
+
+	a.templates.renderStats(w, http.StatusOK, data)
+}
+
+func (a *app) handleMatchesList(w http.ResponseWriter, r *http.Request) {
+	if a.matchSvc == nil {
+		a.templates.renderError(w, http.StatusServiceUnavailable, "Unavailable", "Matches are unavailable.")
+		return
+	}
+	u, _, ok := a.currentUser(r)
+	if !ok {
+		http.Redirect(w, r, "/app/login", http.StatusFound)
+		return
+	}
+
+	matches, err := a.matchSvc.ListMatches(r.Context(), u.ID, 25)
+	if err != nil {
+		a.logger.Error("userui: list matches failed", "err", err)
+		a.templates.renderError(w, http.StatusInternalServerError, "Error", "Failed to load matches")
+		return
+	}
+
+	rows := make([]matchListItem, 0, len(matches))
+	for _, m := range matches {
+		rows = append(rows, matchListItem{
+			ID:        m.ID,
+			PlayedAt:  formatPlayedAt(m.PlayedAt, m.CreatedAt),
+			Format:    string(m.Format),
+			Duration:  formatDuration(m.TotalDurationSeconds),
+			TurnCount: m.TurnCount,
+			Winner:    matchWinner(m),
+			Players:   len(m.Players),
+		})
+	}
+
+	data := matchesViewData{
+		Title:   "Matches",
+		User:    u,
+		Matches: rows,
+		Error:   mapErrorCode(strings.TrimSpace(r.URL.Query().Get("error"))),
+		Notice:  mapNoticeCode(strings.TrimSpace(r.URL.Query().Get("notice"))),
+	}
+
+	a.templates.renderMatches(w, http.StatusOK, data)
+}
+
+func (a *app) handleMatchesDetail(w http.ResponseWriter, r *http.Request) {
+	if a.matchSvc == nil {
+		a.templates.renderError(w, http.StatusServiceUnavailable, "Unavailable", "Match details are unavailable.")
+		return
+	}
+	u, _, ok := a.currentUser(r)
+	if !ok {
+		http.Redirect(w, r, "/app/login", http.StatusFound)
+		return
+	}
+
+	matchID := strings.TrimSpace(r.PathValue("id"))
+	if matchID == "" {
+		a.templates.renderError(w, http.StatusBadRequest, "Invalid", "Match id is required.")
+		return
+	}
+
+	m, err := a.matchSvc.GetMatch(r.Context(), u.ID, matchID)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			a.templates.renderError(w, http.StatusNotFound, "Not found", "Match not found.")
+			return
+		}
+		a.logger.Error("userui: match detail failed", "err", err)
+		a.templates.renderError(w, http.StatusInternalServerError, "Error", "Failed to load match")
+		return
+	}
+
+	avgTurn := "—"
+	if m.TurnCount > 0 && m.TotalDurationSeconds > 0 {
+		avgTurn = formatDuration(m.TotalDurationSeconds / m.TurnCount)
+	}
+
+	data := matchDetailViewData{
+		Title:    "Match detail",
+		User:     u,
+		Match:    m,
+		PlayedAt: formatPlayedAt(m.PlayedAt, m.CreatedAt),
+		Duration: formatDuration(m.TotalDurationSeconds),
+		AvgTurn:  avgTurn,
+	}
+
+	a.templates.renderMatch(w, http.StatusOK, data)
 }
 
 func (a *app) handleFriendRequest(w http.ResponseWriter, r *http.Request) {
@@ -772,6 +913,103 @@ func mapProfileError(code string) string {
 }
 
 const defaultAvatarURL = "/app/static/skull.svg"
+
+func (a *app) friendStats(ctx context.Context, userID string, friends []domain.UserSummary) ([]domain.FriendStatsListItem, error) {
+	items := make([]domain.FriendStatsListItem, 0, len(friends))
+	for _, friend := range friends {
+		stats, err := a.matchSvc.HeadToHead(ctx, userID, friend.ID)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, domain.FriendStatsListItem{
+			Friend:   friend,
+			Total:    stats.Total,
+			Wins:     stats.Wins,
+			Losses:   stats.Losses,
+			CoLosses: stats.CoLosses,
+		})
+	}
+	return items, nil
+}
+
+func formatStats(input map[string]domain.StatsSummary) []formatStatRow {
+	if len(input) == 0 {
+		return nil
+	}
+	order := []string{
+		string(domain.FormatCommander),
+		string(domain.FormatBrawl),
+		string(domain.FormatStandard),
+		string(domain.FormatModern),
+	}
+	rows := make([]formatStatRow, 0, len(input))
+	seen := make(map[string]bool, len(input))
+	for _, key := range order {
+		stats, ok := input[key]
+		if !ok {
+			continue
+		}
+		seen[key] = true
+		rows = append(rows, formatStatRow{
+			Format:         key,
+			MatchesPlayed:  stats.MatchesPlayed,
+			Wins:           stats.Wins,
+			Losses:         stats.Losses,
+			AvgTurnSeconds: stats.AvgTurnSeconds,
+		})
+	}
+	for key, stats := range input {
+		if seen[key] {
+			continue
+		}
+		rows = append(rows, formatStatRow{
+			Format:         key,
+			MatchesPlayed:  stats.MatchesPlayed,
+			Wins:           stats.Wins,
+			Losses:         stats.Losses,
+			AvgTurnSeconds: stats.AvgTurnSeconds,
+		})
+	}
+	return rows
+}
+
+func formatDuration(seconds int) string {
+	if seconds <= 0 {
+		return "—"
+	}
+	if seconds < 60 {
+		return fmt.Sprintf("%ds", seconds)
+	}
+	mins := seconds / 60
+	if mins < 60 {
+		return fmt.Sprintf("%dm", mins)
+	}
+	hours := mins / 60
+	mins = mins % 60
+	if mins == 0 {
+		return fmt.Sprintf("%dh", hours)
+	}
+	return fmt.Sprintf("%dh %dm", hours, mins)
+}
+
+func formatPlayedAt(playedAt *time.Time, createdAt time.Time) string {
+	if playedAt != nil {
+		return playedAt.Format("Jan 2, 2006")
+	}
+	return createdAt.Format("Jan 2, 2006")
+}
+
+func matchWinner(match domain.Match) string {
+	if match.WinnerID == "" {
+		return "—"
+	}
+	for _, p := range match.Players {
+		if p.User.ID == match.WinnerID {
+			return "@" + p.User.Username
+		}
+	}
+	return "—"
+}
 
 func avatarURL(u domain.User) string {
 	updatedAt := u.AvatarUpdatedAt

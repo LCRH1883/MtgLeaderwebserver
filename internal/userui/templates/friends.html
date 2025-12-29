@@ -184,5 +184,30 @@
   {{end}}
 </section>
 {{end}}
+
+{{if .Stats}}
+<section class="panel">
+  <div class="panel-header">
+    <h2>Friend stats</h2>
+    <div class="muted">Wins, losses, and co-losses</div>
+  </div>
+  <div class="list">
+    {{range .Stats}}
+      <div class="list-row stats-row">
+        <div>
+          <div class="friend-name">{{if .Friend.DisplayName}}{{.Friend.DisplayName}}{{else}}@{{.Friend.Username}}{{end}}</div>
+          <div class="username">@{{.Friend.Username}}</div>
+        </div>
+        <div class="stats-inline">
+          <span class="pill">W {{.Wins}}</span>
+          <span class="pill">L {{.Losses}}</span>
+          <span class="pill">Co {{.CoLosses}}</span>
+          <span class="pill">Total {{.Total}}</span>
+        </div>
+      </div>
+    {{end}}
+  </div>
+</section>
+{{end}}
 {{end}}
 {{define "friends.html"}}{{template "layout" .}}{{end}}

@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/app/static/app.css?v=5" />
+    <link rel="stylesheet" href="/app/static/app.css?v=6" />
   </head>
   <body>
     <header class="topbar">
@@ -16,13 +16,15 @@
         <a class="brand" href="/app/">
           <span class="brand-mark">MTG</span>
           <div>
-            <div class="brand-title">Friends</div>
-            <div class="brand-sub">Find and connect with players</div>
+            <div class="brand-title">MTG Leader</div>
+            <div class="brand-sub">Your playgroup hub</div>
           </div>
         </a>
         <div class="nav">
           <a class="nav-link" href="/app/">Home</a>
           <a class="nav-link" href="/app/friends">Friends</a>
+          <a class="nav-link" href="/app/matches">Matches</a>
+          <a class="nav-link" href="/app/stats">Stats</a>
           <div class="nav-user">Signed in as <span>{{if .User.DisplayName}}{{.User.DisplayName}}{{else}}@{{.User.Username}}{{end}}</span></div>
           <a class="nav-link" href="/app/profile">Profile</a>
           <form method="post" action="/app/logout">

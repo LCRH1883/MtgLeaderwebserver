@@ -78,8 +78,12 @@ func NewRouter(opts RouterOpts) http.Handler {
 		if api.matchSvc != nil {
 			mux.HandleFunc("POST /v1/matches", api.requireAuth(api.handleMatchesCreate))
 			mux.HandleFunc("GET /v1/matches", api.requireAuth(api.handleMatchesList))
+			mux.HandleFunc("GET /v1/matches/{id}", api.requireAuth(api.handleMatchesGet))
 			mux.HandleFunc("GET /v1/stats/summary", api.requireAuth(api.handleStatsSummary))
 			mux.HandleFunc("GET /v1/stats/head-to-head/{id}", api.requireAuth(api.handleStatsHeadToHead))
+			if api.friendsSvc != nil {
+				mux.HandleFunc("GET /v1/stats/friends", api.requireAuth(api.handleStatsFriends))
+			}
 		}
 	}
 
