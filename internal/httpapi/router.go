@@ -21,15 +21,21 @@ type RouterOpts struct {
 	Friends      *service.FriendsService
 	Matches      *service.MatchService
 	Users        *service.UsersService
+	Profile      *service.ProfileService
 	CookieCodec  auth.CookieCodec
 	CookieSecure bool
 	SessionTTL   time.Duration
+	AvatarDir    string
 }
 
 func NewRouter(opts RouterOpts) http.Handler {
 	logger := opts.Logger
 	if logger == nil {
 		logger = slog.Default()
+	}
+
+	if opts.AvatarDir == "" {
+		opts.AvatarDir = "data/avatars"
 	}
 
 	api := &api{
@@ -40,6 +46,8 @@ func NewRouter(opts RouterOpts) http.Handler {
 		friendsSvc:   opts.Friends,
 		matchSvc:     opts.Matches,
 		usersSvc:     opts.Users,
+		profileSvc:   opts.Profile,
+		avatarDir:    opts.AvatarDir,
 		cookieCodec:  opts.CookieCodec,
 		cookieSecure: opts.CookieSecure,
 		sessionTTL:   opts.SessionTTL,
@@ -68,12 +76,17 @@ func NewRouter(opts RouterOpts) http.Handler {
 		apiMux.HandleFunc("POST /v1/auth/apple", api.handleAuthLoginApple)
 		apiMux.HandleFunc("POST /v1/auth/logout", api.requireAuth(api.handleAuthLogout))
 		apiMux.HandleFunc("GET /v1/users/me", api.requireAuth(api.handleUsersMe))
+		if api.profileSvc != nil {
+			apiMux.HandleFunc("PATCH /v1/users/me", api.requireAuth(api.handleUsersMeUpdate))
+			apiMux.HandleFunc("POST /v1/users/me/avatar", api.requireAuth(api.handleUsersMeAvatar))
+		}
 		if api.usersSvc != nil {
 			apiMux.HandleFunc("GET /v1/users/search", api.requireAuth(api.handleUsersSearch))
 		}
 
 		if api.friendsSvc != nil {
 			apiMux.HandleFunc("GET /v1/friends", api.requireAuth(api.handleFriendsList))
+			apiMux.HandleFunc("GET /v1/friends/connections", api.requireAuth(api.handleFriendsConnections))
 			apiMux.HandleFunc("POST /v1/friends/requests", api.requireAuth(api.handleFriendsCreateRequest))
 			apiMux.HandleFunc("POST /v1/friends/requests/{id}/accept", api.requireAuth(api.handleFriendsAccept))
 			apiMux.HandleFunc("POST /v1/friends/requests/{id}/decline", api.requireAuth(api.handleFriendsDecline))
@@ -134,6 +147,8 @@ type api struct {
 	friendsSvc   *service.FriendsService
 	matchSvc     *service.MatchService
 	usersSvc     *service.UsersService
+	profileSvc   *service.ProfileService
+	avatarDir    string
 	cookieCodec  auth.CookieCodec
 	cookieSecure bool
 	sessionTTL   time.Duration

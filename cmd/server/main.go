@@ -99,9 +99,11 @@ func main() {
 		Friends:      friendsSvc,
 		Matches:      matchSvc,
 		Users:        usersSvc,
+		Profile:      profileSvc,
 		CookieCodec:  auth.NewCookieCodec([]byte(cfg.CookieSecret)),
 		CookieSecure: cfg.CookieSecure(),
 		SessionTTL:   cfg.SessionTTL,
+		AvatarDir:    cfg.AvatarDir,
 	})
 
 	root := http.NewServeMux()

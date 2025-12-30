@@ -21,3 +21,18 @@ type FriendsOverview struct {
 	Incoming []FriendRequest `json:"incoming_requests"`
 	Outgoing []FriendRequest `json:"outgoing_requests"`
 }
+
+type FriendStatus string
+
+const (
+	FriendStatusAccepted FriendStatus = "accepted"
+	FriendStatusIncoming FriendStatus = "incoming"
+	FriendStatusOutgoing FriendStatus = "outgoing"
+)
+
+type FriendConnection struct {
+	User      UserSummary  `json:"user"`
+	Status    FriendStatus `json:"status"`
+	RequestID string       `json:"request_id,omitempty"`
+	CreatedAt time.Time    `json:"created_at,omitempty"`
+}

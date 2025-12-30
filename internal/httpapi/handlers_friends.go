@@ -22,6 +22,21 @@ func (a *api) handleFriendsList(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, out)
 }
 
+func (a *api) handleFriendsConnections(w http.ResponseWriter, r *http.Request) {
+	u, ok := CurrentUser(r.Context())
+	if !ok {
+		WriteDomainError(w, domain.ErrUnauthorized)
+		return
+	}
+
+	out, err := a.friendsSvc.ListConnections(r.Context(), u.ID)
+	if err != nil {
+		WriteDomainError(w, err)
+		return
+	}
+	WriteJSON(w, http.StatusOK, out)
+}
+
 type createFriendRequestRequest struct {
 	Username string `json:"username"`
 }

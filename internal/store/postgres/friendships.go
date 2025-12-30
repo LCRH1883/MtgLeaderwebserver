@@ -182,7 +182,7 @@ func (s *FriendshipsStore) listFriends(ctx context.Context, userID string) ([]do
 
 func (s *FriendshipsStore) listIncoming(ctx context.Context, userID string) ([]domain.FriendRequest, error) {
 	const q = `
-		SELECT f.id, f.created_at, u.id, u.username
+		SELECT f.id, f.created_at, u.id, u.username, u.display_name, u.avatar_path, u.avatar_updated_at
 		FROM friendships f
 		JOIN users u ON u.id = f.requester_id
 		WHERE f.status = 'pending' AND f.addressee_id = $1
@@ -201,12 +201,21 @@ func (s *FriendshipsStore) listIncoming(ctx context.Context, userID string) ([]d
 		var createdAt time.Time
 		var fromIDUUID pgtype.UUID
 		var fromUsername string
-		if err := rows.Scan(&reqIDUUID, &createdAt, &fromIDUUID, &fromUsername); err != nil {
+		var displayName pgtype.Text
+		var avatarPath pgtype.Text
+		var avatarUpdated pgtype.Timestamptz
+		if err := rows.Scan(&reqIDUUID, &createdAt, &fromIDUUID, &fromUsername, &displayName, &avatarPath, &avatarUpdated); err != nil {
 			return nil, fmt.Errorf("scan incoming request: %w", err)
 		}
 		out = append(out, domain.FriendRequest{
-			ID:        uuidOrEmpty(reqIDUUID),
-			User:      domain.UserSummary{ID: uuidOrEmpty(fromIDUUID), Username: fromUsername},
+			ID: uuidOrEmpty(reqIDUUID),
+			User: domain.UserSummary{
+				ID:              uuidOrEmpty(fromIDUUID),
+				Username:        fromUsername,
+				DisplayName:     textOrEmpty(displayName),
+				AvatarPath:      textOrEmpty(avatarPath),
+				AvatarUpdatedAt: timestamptzPtr(avatarUpdated),
+			},
 			CreatedAt: createdAt,
 		})
 	}
@@ -218,7 +227,7 @@ func (s *FriendshipsStore) listIncoming(ctx context.Context, userID string) ([]d
 
 func (s *FriendshipsStore) listOutgoing(ctx context.Context, userID string) ([]domain.FriendRequest, error) {
 	const q = `
-		SELECT f.id, f.created_at, u.id, u.username
+		SELECT f.id, f.created_at, u.id, u.username, u.display_name, u.avatar_path, u.avatar_updated_at
 		FROM friendships f
 		JOIN users u ON u.id = f.addressee_id
 		WHERE f.status = 'pending' AND f.requester_id = $1
@@ -237,12 +246,21 @@ func (s *FriendshipsStore) listOutgoing(ctx context.Context, userID string) ([]d
 		var createdAt time.Time
 		var toIDUUID pgtype.UUID
 		var toUsername string
-		if err := rows.Scan(&reqIDUUID, &createdAt, &toIDUUID, &toUsername); err != nil {
+		var displayName pgtype.Text
+		var avatarPath pgtype.Text
+		var avatarUpdated pgtype.Timestamptz
+		if err := rows.Scan(&reqIDUUID, &createdAt, &toIDUUID, &toUsername, &displayName, &avatarPath, &avatarUpdated); err != nil {
 			return nil, fmt.Errorf("scan outgoing request: %w", err)
 		}
 		out = append(out, domain.FriendRequest{
-			ID:        uuidOrEmpty(reqIDUUID),
-			User:      domain.UserSummary{ID: uuidOrEmpty(toIDUUID), Username: toUsername},
+			ID: uuidOrEmpty(reqIDUUID),
+			User: domain.UserSummary{
+				ID:              uuidOrEmpty(toIDUUID),
+				Username:        toUsername,
+				DisplayName:     textOrEmpty(displayName),
+				AvatarPath:      textOrEmpty(avatarPath),
+				AvatarUpdatedAt: timestamptzPtr(avatarUpdated),
+			},
 			CreatedAt: createdAt,
 		})
 	}

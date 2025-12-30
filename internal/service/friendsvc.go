@@ -28,6 +28,43 @@ func (s *FriendsService) ListOverview(ctx context.Context, userID string) (domai
 	return s.Friendships.ListOverview(ctx, userID)
 }
 
+func (s *FriendsService) ListConnections(ctx context.Context, userID string) ([]domain.FriendConnection, error) {
+	overview, err := s.Friendships.ListOverview(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	total := len(overview.Friends) + len(overview.Incoming) + len(overview.Outgoing)
+	out := make([]domain.FriendConnection, 0, total)
+
+	for _, friend := range overview.Friends {
+		out = append(out, domain.FriendConnection{
+			User:   friend,
+			Status: domain.FriendStatusAccepted,
+		})
+	}
+
+	for _, req := range overview.Incoming {
+		out = append(out, domain.FriendConnection{
+			User:      req.User,
+			Status:    domain.FriendStatusIncoming,
+			RequestID: req.ID,
+			CreatedAt: req.CreatedAt,
+		})
+	}
+
+	for _, req := range overview.Outgoing {
+		out = append(out, domain.FriendConnection{
+			User:      req.User,
+			Status:    domain.FriendStatusOutgoing,
+			RequestID: req.ID,
+			CreatedAt: req.CreatedAt,
+		})
+	}
+
+	return out, nil
+}
+
 func (s *FriendsService) CreateRequest(ctx context.Context, requesterID, addresseeUsername string) (domain.FriendRequest, error) {
 	if s.Now == nil {
 		s.Now = time.Now
@@ -58,8 +95,14 @@ func (s *FriendsService) CreateRequest(ctx context.Context, requesterID, address
 	}
 
 	return domain.FriendRequest{
-		ID:        id,
-		User:      domain.UserSummary{ID: target.ID, Username: target.Username},
+		ID: id,
+		User: domain.UserSummary{
+			ID:              target.ID,
+			Username:        target.Username,
+			DisplayName:     target.DisplayName,
+			AvatarPath:      target.AvatarPath,
+			AvatarUpdatedAt: target.AvatarUpdatedAt,
+		},
 		CreatedAt: createdAt,
 	}, nil
 }

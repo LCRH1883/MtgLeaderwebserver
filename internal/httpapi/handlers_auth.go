@@ -52,7 +52,7 @@ func (a *api) handleAuthRegister(w http.ResponseWriter, r *http.Request) {
 	cookieValue := a.cookieCodec.EncodeSessionID(sessID)
 	auth.SetSessionCookie(w, cookieValue, a.sessionTTL, a.cookieSecure)
 
-	writeUser(w, http.StatusCreated, u)
+	writeUser(w, http.StatusCreated, u, nil)
 }
 
 type loginRequest struct {
@@ -98,7 +98,7 @@ func (a *api) handleAuthLogin(w http.ResponseWriter, r *http.Request) {
 	cookieValue := a.cookieCodec.EncodeSessionID(sessID)
 	auth.SetSessionCookie(w, cookieValue, a.sessionTTL, a.cookieSecure)
 
-	writeUser(w, http.StatusOK, u)
+	writeUser(w, http.StatusOK, u, nil)
 }
 
 func (a *api) handleAuthLoginGoogle(w http.ResponseWriter, r *http.Request) {
@@ -129,7 +129,7 @@ func (a *api) handleAuthLoginGoogle(w http.ResponseWriter, r *http.Request) {
 	cookieValue := a.cookieCodec.EncodeSessionID(sessID)
 	auth.SetSessionCookie(w, cookieValue, a.sessionTTL, a.cookieSecure)
 
-	writeUser(w, http.StatusOK, u)
+	writeUser(w, http.StatusOK, u, nil)
 }
 
 func (a *api) handleAuthLoginApple(w http.ResponseWriter, r *http.Request) {
@@ -160,7 +160,7 @@ func (a *api) handleAuthLoginApple(w http.ResponseWriter, r *http.Request) {
 	cookieValue := a.cookieCodec.EncodeSessionID(sessID)
 	auth.SetSessionCookie(w, cookieValue, a.sessionTTL, a.cookieSecure)
 
-	writeUser(w, http.StatusOK, u)
+	writeUser(w, http.StatusOK, u, nil)
 }
 
 func (a *api) handleAuthLogout(w http.ResponseWriter, r *http.Request) {
