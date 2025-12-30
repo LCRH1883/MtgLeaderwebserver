@@ -47,6 +47,10 @@ func WriteDomainError(w http.ResponseWriter, err error) {
 		WriteError(w, http.StatusConflict, "friendship_exists", "friend request already exists")
 	case errors.Is(err, domain.ErrExternalAccountExists):
 		WriteError(w, http.StatusConflict, "external_account_exists", "external account already linked")
+	case errors.Is(err, domain.ErrResetTokenInvalid):
+		WriteError(w, http.StatusBadRequest, "reset_token_invalid", "reset token is invalid or already used")
+	case errors.Is(err, domain.ErrResetTokenExpired):
+		WriteError(w, http.StatusBadRequest, "reset_token_expired", "reset token has expired")
 	case errors.Is(err, domain.ErrNotFound):
 		WriteError(w, http.StatusNotFound, "not_found", "not found")
 	default:

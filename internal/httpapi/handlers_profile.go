@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"context"
 	"fmt"
 	"image"
 	"image/color"
@@ -14,15 +13,18 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"MtgLeaderwebserver/internal/domain"
+	"MtgLeaderwebserver/internal/service"
 )
 
 const defaultAvatarURL = "/app/static/skull.svg"
 
 type updateProfileRequest struct {
 	DisplayName *string `json:"display_name"`
+	UpdatedAt   string  `json:"updated_at"`
 }
 
 func (a *api) handleUsersMeUpdate(w http.ResponseWriter, r *http.Request) {
@@ -32,7 +34,7 @@ func (a *api) handleUsersMeUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if a.profileSvc == nil {
-		WriteDomainError(w, domain.ErrNotFound)
+		WriteError(w, http.StatusServiceUnavailable, "profile_unavailable", "profile unavailable")
 		return
 	}
 
@@ -46,17 +48,24 @@ func (a *api) handleUsersMeUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := a.profileSvc.UpdateDisplayName(r.Context(), u.ID, *req.DisplayName); err != nil {
+	updatedAt, err := parseUpdatedAt(req.UpdatedAt)
+	if err != nil {
+		WriteError(w, http.StatusBadRequest, "invalid_updated_at", "updated_at must be RFC3339 UTC with milliseconds")
+		return
+	}
+
+	updated, result, err := a.profileSvc.UpdateDisplayName(r.Context(), u.ID, *req.DisplayName, updatedAt)
+	if err != nil {
 		WriteDomainError(w, err)
 		return
 	}
 
-	updated, ok := a.currentUserSnapshot(r.Context())
-	if !ok {
-		WriteDomainError(w, domain.ErrUnauthorized)
-		return
+	switch result {
+	case service.ProfileUpdateConflict:
+		writeUser(w, http.StatusConflict, updated, nil)
+	default:
+		writeUser(w, http.StatusOK, updated, nil)
 	}
-	writeUser(w, http.StatusOK, updated, nil)
 }
 
 func (a *api) handleUsersMeAvatar(w http.ResponseWriter, r *http.Request) {
@@ -66,7 +75,7 @@ func (a *api) handleUsersMeAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if a.profileSvc == nil {
-		WriteDomainError(w, domain.ErrNotFound)
+		WriteError(w, http.StatusServiceUnavailable, "profile_unavailable", "profile unavailable")
 		return
 	}
 
@@ -83,6 +92,12 @@ func (a *api) handleUsersMeAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer file.Close()
+
+	updatedAt, err := parseUpdatedAt(r.FormValue("updated_at"))
+	if err != nil {
+		WriteError(w, http.StatusBadRequest, "invalid_updated_at", "updated_at must be RFC3339 UTC with milliseconds")
+		return
+	}
 
 	img, _, err := image.Decode(file)
 	if err != nil {
@@ -101,7 +116,7 @@ func (a *api) handleUsersMeAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	filename := fmt.Sprintf("%s.jpg", u.ID)
+	filename := fmt.Sprintf("%s-%d.jpg", u.ID, updatedAt.UnixNano())
 	targetPath := filepath.Join(a.avatarDir, filename)
 	tmpFile, err := os.CreateTemp(a.avatarDir, "avatar-*")
 	if err != nil {
@@ -136,35 +151,27 @@ func (a *api) handleUsersMeAvatar(w http.ResponseWriter, r *http.Request) {
 		a.logger.Error("chmod avatar failed", "err", err)
 	}
 
-	updatedAt := time.Now()
-	if err := a.profileSvc.UpdateAvatar(r.Context(), u.ID, filename, updatedAt); err != nil {
+	updated, result, err := a.profileSvc.UpdateAvatar(r.Context(), u.ID, filename, updatedAt)
+	if err != nil {
 		_ = os.Remove(targetPath)
 		WriteDomainError(w, err)
 		return
 	}
-
-	updated, ok := a.currentUserSnapshot(r.Context())
-	if !ok {
-		WriteDomainError(w, domain.ErrUnauthorized)
+	if result != service.ProfileUpdateApplied {
+		_ = os.Remove(targetPath)
+		if result == service.ProfileUpdateConflict {
+			writeUser(w, http.StatusConflict, updated, nil)
+			return
+		}
+		writeUser(w, http.StatusOK, updated, nil)
 		return
 	}
-	writeUser(w, http.StatusOK, updated, nil)
-}
 
-func (a *api) currentUserSnapshot(ctx context.Context) (domain.User, bool) {
-	u, ok := CurrentUser(ctx)
-	if !ok {
-		return domain.User{}, false
+	if oldPath := strings.TrimSpace(u.AvatarPath); oldPath != "" && oldPath != filename {
+		_ = os.Remove(filepath.Join(a.avatarDir, oldPath))
 	}
-	sessID, ok := CurrentSessionID(ctx)
-	if !ok || a.authSvc == nil {
-		return u, true
-	}
-	updated, err := a.authSvc.GetUserForSession(ctx, sessID)
-	if err != nil {
-		return u, true
-	}
-	return updated, true
+
+	writeUser(w, http.StatusOK, updated, nil)
 }
 
 func avatarURL(u domain.User) string {
@@ -184,4 +191,32 @@ func avatarURLWithUpdated(path string, updatedAt *time.Time) string {
 		return "/app/avatars/" + escaped
 	}
 	return "/app/avatars/" + escaped + "?v=" + strconv.FormatInt(updatedAt.Unix(), 10)
+}
+
+func parseUpdatedAt(raw string) (time.Time, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return time.Time{}, fmt.Errorf("updated_at required")
+	}
+	if !strings.HasSuffix(raw, "Z") {
+		return time.Time{}, fmt.Errorf("updated_at must be utc")
+	}
+	dot := strings.LastIndex(raw, ".")
+	if dot == -1 {
+		return time.Time{}, fmt.Errorf("updated_at must include milliseconds")
+	}
+	fraction := raw[dot+1 : len(raw)-1]
+	if len(fraction) != 3 {
+		return time.Time{}, fmt.Errorf("updated_at must have 3 digits of milliseconds")
+	}
+	for _, r := range fraction {
+		if r < '0' || r > '9' {
+			return time.Time{}, fmt.Errorf("updated_at invalid")
+		}
+	}
+	parsed, err := time.Parse(time.RFC3339Nano, raw)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return parsed.UTC(), nil
 }

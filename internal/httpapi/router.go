@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -22,10 +23,13 @@ type RouterOpts struct {
 	Matches      *service.MatchService
 	Users        *service.UsersService
 	Profile      *service.ProfileService
+	Reset        *service.PasswordResetService
+	Email        *service.EmailService
 	CookieCodec  auth.CookieCodec
 	CookieSecure bool
 	SessionTTL   time.Duration
 	AvatarDir    string
+	PublicURL    *url.URL
 }
 
 func NewRouter(opts RouterOpts) http.Handler {
@@ -47,7 +51,10 @@ func NewRouter(opts RouterOpts) http.Handler {
 		matchSvc:     opts.Matches,
 		usersSvc:     opts.Users,
 		profileSvc:   opts.Profile,
+		resetSvc:     opts.Reset,
+		emailSvc:     opts.Email,
 		avatarDir:    opts.AvatarDir,
+		publicURL:    opts.PublicURL,
 		cookieCodec:  opts.CookieCodec,
 		cookieSecure: opts.CookieSecure,
 		sessionTTL:   opts.SessionTTL,
@@ -74,12 +81,25 @@ func NewRouter(opts RouterOpts) http.Handler {
 		apiMux.HandleFunc("POST /v1/auth/login", api.handleAuthLogin)
 		apiMux.HandleFunc("POST /v1/auth/google", api.handleAuthLoginGoogle)
 		apiMux.HandleFunc("POST /v1/auth/apple", api.handleAuthLoginApple)
+		if api.resetSvc != nil {
+			apiMux.HandleFunc("POST /v1/auth/reset", api.handleAuthReset)
+		}
+		if api.resetSvc != nil && api.emailSvc != nil {
+			apiMux.HandleFunc("POST /v1/auth/forgot", api.handleAuthForgot)
+		}
 		apiMux.HandleFunc("POST /v1/auth/logout", api.requireAuth(api.handleAuthLogout))
 		apiMux.HandleFunc("GET /v1/users/me", api.requireAuth(api.handleUsersMe))
-		if api.profileSvc != nil {
-			apiMux.HandleFunc("PATCH /v1/users/me", api.requireAuth(api.handleUsersMeUpdate))
-			apiMux.HandleFunc("POST /v1/users/me/avatar", api.requireAuth(api.handleUsersMeAvatar))
-		}
+		apiMux.HandleFunc("GET /v1/users/me/", api.requireAuth(api.handleUsersMe))
+		apiMux.HandleFunc("PATCH /v1/users/me", api.requireAuth(api.handleUsersMeUpdate))
+		apiMux.HandleFunc("PUT /v1/users/me", api.requireAuth(api.handleUsersMeUpdate))
+		apiMux.HandleFunc("POST /v1/users/me", api.requireAuth(api.handleUsersMeUpdate))
+		apiMux.HandleFunc("PATCH /v1/users/me/", api.requireAuth(api.handleUsersMeUpdate))
+		apiMux.HandleFunc("PUT /v1/users/me/", api.requireAuth(api.handleUsersMeUpdate))
+		apiMux.HandleFunc("POST /v1/users/me/", api.requireAuth(api.handleUsersMeUpdate))
+		apiMux.HandleFunc("POST /v1/users/me/avatar", api.requireAuth(api.handleUsersMeAvatar))
+		apiMux.HandleFunc("PUT /v1/users/me/avatar", api.requireAuth(api.handleUsersMeAvatar))
+		apiMux.HandleFunc("POST /v1/users/me/avatar/", api.requireAuth(api.handleUsersMeAvatar))
+		apiMux.HandleFunc("PUT /v1/users/me/avatar/", api.requireAuth(api.handleUsersMeAvatar))
 		if api.usersSvc != nil {
 			apiMux.HandleFunc("GET /v1/users/search", api.requireAuth(api.handleUsersSearch))
 		}
@@ -148,7 +168,10 @@ type api struct {
 	matchSvc     *service.MatchService
 	usersSvc     *service.UsersService
 	profileSvc   *service.ProfileService
+	resetSvc     *service.PasswordResetService
+	emailSvc     *service.EmailService
 	avatarDir    string
+	publicURL    *url.URL
 	cookieCodec  auth.CookieCodec
 	cookieSecure bool
 	sessionTTL   time.Duration

@@ -20,6 +20,7 @@ import (
 
 	"MtgLeaderwebserver/internal/auth"
 	"MtgLeaderwebserver/internal/domain"
+	"MtgLeaderwebserver/internal/service"
 )
 
 const (
@@ -285,7 +286,9 @@ func (a *app) handleProfilePost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	displayName := strings.TrimSpace(r.FormValue("display_name"))
-	if err := a.profileSvc.UpdateDisplayName(r.Context(), u.ID, displayName); err != nil {
+	updatedAt := time.Now().UTC().Truncate(time.Millisecond)
+	updated, result, err := a.profileSvc.UpdateDisplayName(r.Context(), u.ID, displayName, updatedAt)
+	if err != nil {
 		u.DisplayName = displayName
 		msg := "Failed to update profile."
 		var vErr *domain.ValidationError
@@ -300,6 +303,16 @@ func (a *app) handleProfilePost(w http.ResponseWriter, r *http.Request) {
 			DisplayName: displayName,
 			AvatarURL:   avatarURL(u),
 			Error:       msg,
+		})
+		return
+	}
+	if result == service.ProfileUpdateConflict {
+		a.templates.renderProfile(w, http.StatusConflict, profileViewData{
+			Title:       "Profile",
+			User:        updated,
+			DisplayName: updated.DisplayName,
+			AvatarURL:   avatarURL(updated),
+			Error:       "Profile updated elsewhere. Refresh and try again.",
 		})
 		return
 	}
@@ -349,7 +362,8 @@ func (a *app) handleProfileAvatarPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	filename := fmt.Sprintf("%s.jpg", u.ID)
+	updatedAt := time.Now().UTC().Truncate(time.Millisecond)
+	filename := fmt.Sprintf("%s-%d.jpg", u.ID, updatedAt.UnixNano())
 	targetPath := filepath.Join(a.avatarDir, filename)
 	tmpFile, err := os.CreateTemp(a.avatarDir, "avatar-*")
 	if err != nil {
@@ -384,12 +398,24 @@ func (a *app) handleProfileAvatarPost(w http.ResponseWriter, r *http.Request) {
 		a.logger.Error("userui: chmod avatar failed", "err", err)
 	}
 
-	updatedAt := time.Now()
-	if err := a.profileSvc.UpdateAvatar(r.Context(), u.ID, filename, updatedAt); err != nil {
+	_, result, err := a.profileSvc.UpdateAvatar(r.Context(), u.ID, filename, updatedAt)
+	if err != nil {
 		_ = os.Remove(targetPath)
 		a.logger.Error("userui: update avatar failed", "err", err)
 		http.Error(w, "Failed to update avatar.", http.StatusInternalServerError)
 		return
+	}
+	if result != service.ProfileUpdateApplied {
+		_ = os.Remove(targetPath)
+		if result == service.ProfileUpdateConflict {
+			http.Error(w, "Profile updated elsewhere. Refresh and try again.", http.StatusConflict)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	if oldPath := strings.TrimSpace(u.AvatarPath); oldPath != "" && oldPath != filename {
+		_ = os.Remove(filepath.Join(a.avatarDir, oldPath))
 	}
 
 	w.WriteHeader(http.StatusNoContent)

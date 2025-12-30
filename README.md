@@ -67,6 +67,10 @@ scripts/go test ./...
 scripts/go run ./cmd/server
 ```
 
+### First Run (No Prompts)
+- Ensure `.env` exists with `APP_DB_DSN` set (use `.env.example` as a template).
+- `scripts/migrate up` reads `.env` automatically, so no extra export is required.
+
 If you access the app over plain HTTP, `APP_PUBLIC_URL` must also be HTTP or login will loop (secure cookies are only sent over HTTPS).
 
 ### Endpoints

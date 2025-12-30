@@ -13,6 +13,10 @@
 - `scripts/migrate up` applies DB migrations (requires `APP_DB_DSN`).
 - `scripts/migrate status` shows the current migration state.
 
+## First-Run Checklist (No Prompts)
+- Copy `.env.example` to `.env` and ensure `APP_DB_DSN` is set (local dev example is already in `.env.example`).
+- Run `scripts/migrate up` once after setting `.env`.
+
 ## Coding Style & Naming Conventions
 - Follow standard Go style and run `gofmt` on all `.go` files.
 - Use tabs for indentation (Go default).

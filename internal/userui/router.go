@@ -96,10 +96,18 @@ func New(opts Opts) http.Handler {
 	mux.Handle("HEAD /app/static/", static)
 
 	avatars := http.StripPrefix("/app/avatars/", http.FileServer(http.Dir(app.avatarDir)))
+	avatars = withCacheControl("public, max-age=31536000, immutable", avatars)
 	mux.Handle("GET /app/avatars/", avatars)
 	mux.Handle("HEAD /app/avatars/", avatars)
 
 	return mux
+}
+
+func withCacheControl(value string, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", value)
+		next.ServeHTTP(w, r)
+	})
 }
 
 type app struct {

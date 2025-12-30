@@ -24,8 +24,8 @@ func NewUsersStore(pool *pgxpool.Pool) *UsersStore {
 
 func (s *UsersStore) CreateUser(ctx context.Context, email, username, passwordHash string) (domain.User, error) {
 	const q = `
-		INSERT INTO users (email, username, password_hash)
-		VALUES ($1, $2, $3)
+		INSERT INTO users (email, username, password_hash, created_at, updated_at)
+		VALUES ($1, $2, $3, date_trunc('milliseconds', now()), date_trunc('milliseconds', now()))
 		RETURNING id, email, username, status, created_at, updated_at, last_login_at, display_name, avatar_path, avatar_updated_at
 	`
 
@@ -203,7 +203,7 @@ func (s *UsersStore) GetUserByEmail(ctx context.Context, email string) (domain.U
 func (s *UsersStore) SetLastLogin(ctx context.Context, userID string, when time.Time) error {
 	const q = `
 		UPDATE users
-		SET last_login_at = $2, updated_at = now()
+		SET last_login_at = $2
 		WHERE id = $1
 	`
 	_, err := s.pool.Exec(ctx, q, userID, when)
@@ -216,7 +216,7 @@ func (s *UsersStore) SetLastLogin(ctx context.Context, userID string, when time.
 func (s *UsersStore) SetPasswordHash(ctx context.Context, userID, passwordHash string) error {
 	const q = `
 		UPDATE users
-		SET password_hash = $2, updated_at = now()
+		SET password_hash = $2, updated_at = date_trunc('milliseconds', now())
 		WHERE id = $1
 	`
 	tag, err := s.pool.Exec(ctx, q, userID, passwordHash)
@@ -229,36 +229,40 @@ func (s *UsersStore) SetPasswordHash(ctx context.Context, userID, passwordHash s
 	return nil
 }
 
-func (s *UsersStore) SetDisplayName(ctx context.Context, userID, displayName string) error {
+func (s *UsersStore) UpdateDisplayName(ctx context.Context, userID, displayName string, updatedAt time.Time) (domain.User, bool, error) {
 	const q = `
 		UPDATE users
-		SET display_name = $2, updated_at = now()
+		SET display_name = $2, updated_at = $3
 		WHERE id = $1
+		  AND updated_at < $3
 	`
-	tag, err := s.pool.Exec(ctx, q, userID, nullIfEmpty(displayName))
+	tag, err := s.pool.Exec(ctx, q, userID, nullIfEmpty(displayName), updatedAt)
 	if err != nil {
-		return fmt.Errorf("set display name: %w", err)
+		return domain.User{}, false, fmt.Errorf("update display name: %w", err)
 	}
-	if tag.RowsAffected() == 0 {
-		return domain.ErrNotFound
+	u, err := s.GetUserByID(ctx, userID)
+	if err != nil {
+		return domain.User{}, false, err
 	}
-	return nil
+	return u, tag.RowsAffected() > 0, nil
 }
 
-func (s *UsersStore) SetAvatar(ctx context.Context, userID, avatarPath string, updatedAt time.Time) error {
+func (s *UsersStore) UpdateAvatar(ctx context.Context, userID, avatarPath string, updatedAt time.Time) (domain.User, bool, error) {
 	const q = `
 		UPDATE users
-		SET avatar_path = $2, avatar_updated_at = $3, updated_at = now()
+		SET avatar_path = $2, avatar_updated_at = $3, updated_at = $3
 		WHERE id = $1
+		  AND updated_at < $3
 	`
 	tag, err := s.pool.Exec(ctx, q, userID, nullIfEmpty(avatarPath), updatedAt)
 	if err != nil {
-		return fmt.Errorf("set avatar: %w", err)
+		return domain.User{}, false, fmt.Errorf("update avatar: %w", err)
 	}
-	if tag.RowsAffected() == 0 {
-		return domain.ErrNotFound
+	u, err := s.GetUserByID(ctx, userID)
+	if err != nil {
+		return domain.User{}, false, err
 	}
-	return nil
+	return u, tag.RowsAffected() > 0, nil
 }
 
 func (s *UsersStore) GetUserByExternalAccount(ctx context.Context, provider, providerID string) (domain.User, domain.ExternalAccount, error) {
@@ -336,8 +340,8 @@ func (s *UsersStore) CreateUserWithExternalAccount(ctx context.Context, provider
 	}()
 
 	const userQ = `
-		INSERT INTO users (email, username, password_hash)
-		VALUES ($1, $2, $3)
+		INSERT INTO users (email, username, password_hash, created_at, updated_at)
+		VALUES ($1, $2, $3, date_trunc('milliseconds', now()), date_trunc('milliseconds', now()))
 		RETURNING id, email, username, status, created_at, updated_at, last_login_at, display_name, avatar_path, avatar_updated_at
 	`
 

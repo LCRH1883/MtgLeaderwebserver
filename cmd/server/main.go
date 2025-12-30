@@ -100,10 +100,13 @@ func main() {
 		Matches:      matchSvc,
 		Users:        usersSvc,
 		Profile:      profileSvc,
+		Reset:        resetSvc,
+		Email:        emailSvc,
 		CookieCodec:  auth.NewCookieCodec([]byte(cfg.CookieSecret)),
 		CookieSecure: cfg.CookieSecure(),
 		SessionTTL:   cfg.SessionTTL,
 		AvatarDir:    cfg.AvatarDir,
+		PublicURL:    cfg.PublicURL,
 	})
 
 	root := http.NewServeMux()

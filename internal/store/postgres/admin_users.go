@@ -118,7 +118,7 @@ func (s *AdminUsersStore) GetUserByID(ctx context.Context, id string) (domain.Us
 func (s *AdminUsersStore) SetUserEmail(ctx context.Context, userID, email string) error {
 	const q = `
 		UPDATE users
-		SET email = $2, updated_at = now()
+		SET email = $2, updated_at = date_trunc('milliseconds', now())
 		WHERE id = $1
 	`
 	tag, err := s.pool.Exec(ctx, q, userID, nullIfEmpty(email))

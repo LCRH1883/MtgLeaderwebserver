@@ -4,7 +4,16 @@ set -euo pipefail
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 
 if [[ -z "${APP_DB_DSN:-}" ]]; then
-  echo "APP_DB_DSN is required (e.g. export APP_DB_DSN=postgres://...)" >&2
+  if [[ -f "${ROOT_DIR}/.env" ]]; then
+    set -a
+    # shellcheck disable=SC1090
+    source "${ROOT_DIR}/.env"
+    set +a
+  fi
+fi
+
+if [[ -z "${APP_DB_DSN:-}" ]]; then
+  echo "APP_DB_DSN is required (set in .env or export APP_DB_DSN=postgres://...)" >&2
   exit 1
 fi
 
