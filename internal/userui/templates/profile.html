@@ -3,7 +3,7 @@
   <div>
     <p class="eyebrow">Your profile</p>
     <h1>Set your name and avatar.</h1>
-    <p class="lead">Crop a 512x512 avatar and pick the name shown on your profile.</p>
+    <p class="lead">Crop a 96x96 avatar and pick the name shown on your profile.</p>
   </div>
 </section>
 
@@ -23,7 +23,7 @@
     <div class="profile-card">
       <div class="avatar-stack">
         <img class="avatar-preview" src="{{.AvatarURL}}" alt="Profile avatar" />
-        <div class="muted small">Stored as 512x512 JPG</div>
+        <div class="muted small">Stored as 96x96 JPG</div>
       </div>
       <div class="profile-meta">
         <div class="profile-field">
@@ -57,7 +57,7 @@
       <label class="label" for="avatar-file">Choose image</label>
       <input id="avatar-file" name="avatar" type="file" accept="image/*" />
       <div class="cropper" id="cropper">
-        <canvas id="avatar-canvas" width="512" height="512"></canvas>
+        <canvas id="avatar-canvas" width="96" height="96"></canvas>
         <div class="cropper-placeholder">Select a photo to begin</div>
       </div>
       <div class="crop-controls">
@@ -68,7 +68,7 @@
         <button type="button" id="avatar-save">Save avatar</button>
         <span class="muted small" id="avatar-status"></span>
       </div>
-      <div class="hint">The server saves a lightweight 512x512 JPEG.</div>
+      <div class="hint">The server saves a lightweight 96x96 JPEG.</div>
       <div class="alert" id="avatar-error" style="display:none;"></div>
     </form>
   </div>

@@ -97,8 +97,10 @@ func NewRouter(opts RouterOpts) http.Handler {
 		apiMux.HandleFunc("PUT /v1/users/me/", api.requireAuth(api.handleUsersMeUpdate))
 		apiMux.HandleFunc("POST /v1/users/me/", api.requireAuth(api.handleUsersMeUpdate))
 		apiMux.HandleFunc("POST /v1/users/me/avatar", api.requireAuth(api.handleUsersMeAvatar))
+		apiMux.HandleFunc("PATCH /v1/users/me/avatar", api.requireAuth(api.handleUsersMeAvatar))
 		apiMux.HandleFunc("PUT /v1/users/me/avatar", api.requireAuth(api.handleUsersMeAvatar))
 		apiMux.HandleFunc("POST /v1/users/me/avatar/", api.requireAuth(api.handleUsersMeAvatar))
+		apiMux.HandleFunc("PATCH /v1/users/me/avatar/", api.requireAuth(api.handleUsersMeAvatar))
 		apiMux.HandleFunc("PUT /v1/users/me/avatar/", api.requireAuth(api.handleUsersMeAvatar))
 		if api.usersSvc != nil {
 			apiMux.HandleFunc("GET /v1/users/search", api.requireAuth(api.handleUsersSearch))

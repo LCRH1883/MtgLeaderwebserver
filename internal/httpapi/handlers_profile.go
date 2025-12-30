@@ -20,7 +20,10 @@ import (
 	"MtgLeaderwebserver/internal/service"
 )
 
-const defaultAvatarURL = "/app/static/skull.svg"
+const (
+	defaultAvatarURL = "/app/static/skull.svg"
+	avatarSize       = 96
+)
 
 type updateProfileRequest struct {
 	DisplayName *string `json:"display_name"`
@@ -105,8 +108,8 @@ func (a *api) handleUsersMeAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	bounds := img.Bounds()
-	if bounds.Dx() != 512 || bounds.Dy() != 512 {
-		WriteError(w, http.StatusBadRequest, "invalid_avatar", "avatar must be 512x512")
+	if bounds.Dx() != avatarSize || bounds.Dy() != avatarSize {
+		WriteError(w, http.StatusBadRequest, "invalid_avatar", "avatar must be 96x96")
 		return
 	}
 
@@ -132,7 +135,7 @@ func (a *api) handleUsersMeAvatar(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, http.StatusInternalServerError, "internal_error", "failed to store avatar")
 	}
 
-	dst := image.NewRGBA(image.Rect(0, 0, 512, 512))
+	dst := image.NewRGBA(image.Rect(0, 0, avatarSize, avatarSize))
 	draw.Draw(dst, dst.Bounds(), &image.Uniform{C: color.White}, image.Point{}, draw.Src)
 	draw.Draw(dst, dst.Bounds(), img, bounds.Min, draw.Over)
 	if err := jpeg.Encode(tmpFile, dst, &jpeg.Options{Quality: 85}); err != nil {

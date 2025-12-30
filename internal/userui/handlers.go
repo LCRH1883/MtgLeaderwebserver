@@ -331,7 +331,10 @@ func (a *app) handleProfileAvatarPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	const maxAvatarSize = 8 << 20
+	const (
+		maxAvatarSize = 8 << 20
+		avatarSize    = 96
+	)
 	r.Body = http.MaxBytesReader(w, r.Body, maxAvatarSize)
 	if err := r.ParseMultipartForm(maxAvatarSize); err != nil {
 		http.Error(w, "Avatar file is too large.", http.StatusBadRequest)
@@ -351,8 +354,8 @@ func (a *app) handleProfileAvatarPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	bounds := img.Bounds()
-	if bounds.Dx() != 512 || bounds.Dy() != 512 {
-		http.Error(w, "Avatar must be 512x512. Use the crop tool.", http.StatusBadRequest)
+	if bounds.Dx() != avatarSize || bounds.Dy() != avatarSize {
+		http.Error(w, "Avatar must be 96x96. Use the crop tool.", http.StatusBadRequest)
 		return
 	}
 
@@ -379,7 +382,7 @@ func (a *app) handleProfileAvatarPost(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to store avatar.", http.StatusInternalServerError)
 	}
 
-	dst := image.NewRGBA(image.Rect(0, 0, 512, 512))
+	dst := image.NewRGBA(image.Rect(0, 0, avatarSize, avatarSize))
 	draw.Draw(dst, dst.Bounds(), &image.Uniform{C: color.White}, image.Point{}, draw.Src)
 	draw.Draw(dst, dst.Bounds(), img, bounds.Min, draw.Over)
 	if err := jpeg.Encode(tmpFile, dst, &jpeg.Options{Quality: 85}); err != nil {

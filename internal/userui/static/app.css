@@ -525,16 +525,16 @@ button.ghost{
 }
 .avatar-preview,
 .avatar-placeholder{
-  width:120px;
-  height:120px;
-  border-radius:24px;
+  width:96px;
+  height:96px;
+  border-radius:20px;
   border:2px solid var(--line);
   background:var(--surface);
   display:flex;
   align-items:center;
   justify-content:center;
   font-weight:700;
-  font-size:24px;
+  font-size:20px;
   color:var(--accent);
   box-shadow:var(--shadow);
 }

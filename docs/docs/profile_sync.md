@@ -21,6 +21,7 @@ Timestamp contract
   - `GET /v1/users/me`
   - `PATCH /v1/users/me`
   - `POST /v1/users/me/avatar`
+  - `PATCH /v1/users/me/avatar`
 
 Endpoints
 ---------
@@ -86,9 +87,10 @@ Conflict example:
 ```
 
 POST /v1/users/me/avatar
+PATCH /v1/users/me/avatar
 PUT /v1/users/me/avatar
   - Multipart form:
-    - `avatar`: 512x512 image file (jpeg/png/gif accepted by server)
+    - `avatar`: 96x96 image file (jpeg/png/gif accepted by server)
     - `updated_at`: RFC3339 with milliseconds
   - Response:
     - 200 + full user payload on success
