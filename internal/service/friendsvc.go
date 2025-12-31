@@ -10,12 +10,13 @@ import (
 )
 
 type FriendshipsStore interface {
-	CreateRequest(ctx context.Context, requesterID, addresseeID string) (string, time.Time, error)
-	Accept(ctx context.Context, requestID, addresseeID string, when time.Time) error
-	Decline(ctx context.Context, requestID, addresseeID string, when time.Time) error
-	Cancel(ctx context.Context, requestID, requesterID string) error
+	CreateRequest(ctx context.Context, requesterID, addresseeID string) (string, time.Time, time.Time, error)
+	Accept(ctx context.Context, requestID, addresseeID string, when time.Time, checkUpdatedAt bool) (bool, error)
+	Decline(ctx context.Context, requestID, addresseeID string, when time.Time, checkUpdatedAt bool) (bool, error)
+	Cancel(ctx context.Context, requestID, requesterID string, when time.Time, checkUpdatedAt bool) (bool, error)
 	ListOverview(ctx context.Context, userID string) (domain.FriendsOverview, error)
 	AreFriends(ctx context.Context, userA, userB string) (bool, error)
+	LatestFriendshipUpdate(ctx context.Context, userID string) (time.Time, error)
 }
 
 type FriendsService struct {
@@ -23,6 +24,13 @@ type FriendsService struct {
 	Friendships FriendshipsStore
 	Now         func() time.Time
 }
+
+type FriendRequestActionResult int
+
+const (
+	FriendRequestActionApplied FriendRequestActionResult = iota
+	FriendRequestActionConflict
+)
 
 func (s *FriendsService) ListOverview(ctx context.Context, userID string) (domain.FriendsOverview, error) {
 	return s.Friendships.ListOverview(ctx, userID)
@@ -50,6 +58,7 @@ func (s *FriendsService) ListConnections(ctx context.Context, userID string) ([]
 			Status:    domain.FriendStatusIncoming,
 			RequestID: req.ID,
 			CreatedAt: req.CreatedAt,
+			UpdatedAt: req.UpdatedAt,
 		})
 	}
 
@@ -59,6 +68,7 @@ func (s *FriendsService) ListConnections(ctx context.Context, userID string) ([]
 			Status:    domain.FriendStatusOutgoing,
 			RequestID: req.ID,
 			CreatedAt: req.CreatedAt,
+			UpdatedAt: req.UpdatedAt,
 		})
 	}
 
@@ -89,7 +99,7 @@ func (s *FriendsService) CreateRequest(ctx context.Context, requesterID, address
 		return domain.FriendRequest{}, domain.ErrForbidden
 	}
 
-	id, createdAt, err := s.Friendships.CreateRequest(ctx, requesterID, target.ID)
+	id, createdAt, updatedAt, err := s.Friendships.CreateRequest(ctx, requesterID, target.ID)
 	if err != nil {
 		return domain.FriendRequest{}, err
 	}
@@ -104,27 +114,61 @@ func (s *FriendsService) CreateRequest(ctx context.Context, requesterID, address
 			AvatarUpdatedAt: target.AvatarUpdatedAt,
 		},
 		CreatedAt: createdAt,
+		UpdatedAt: updatedAt,
 	}, nil
 }
 
-func (s *FriendsService) Accept(ctx context.Context, addresseeID, requestID string) error {
-	if s.Now == nil {
-		s.Now = time.Now
+func (s *FriendsService) Accept(ctx context.Context, addresseeID, requestID string, updatedAt *time.Time) (FriendRequestActionResult, error) {
+	when, checkUpdatedAt := s.actionTime(updatedAt)
+	applied, err := s.Friendships.Accept(ctx, requestID, addresseeID, when, checkUpdatedAt)
+	if err != nil {
+		return FriendRequestActionConflict, err
 	}
-	return s.Friendships.Accept(ctx, requestID, addresseeID, s.Now())
+	if !applied {
+		return FriendRequestActionConflict, nil
+	}
+	return FriendRequestActionApplied, nil
 }
 
-func (s *FriendsService) Decline(ctx context.Context, addresseeID, requestID string) error {
-	if s.Now == nil {
-		s.Now = time.Now
+func (s *FriendsService) Decline(ctx context.Context, addresseeID, requestID string, updatedAt *time.Time) (FriendRequestActionResult, error) {
+	when, checkUpdatedAt := s.actionTime(updatedAt)
+	applied, err := s.Friendships.Decline(ctx, requestID, addresseeID, when, checkUpdatedAt)
+	if err != nil {
+		return FriendRequestActionConflict, err
 	}
-	return s.Friendships.Decline(ctx, requestID, addresseeID, s.Now())
+	if !applied {
+		return FriendRequestActionConflict, nil
+	}
+	return FriendRequestActionApplied, nil
 }
 
-func (s *FriendsService) Cancel(ctx context.Context, requesterID, requestID string) error {
-	return s.Friendships.Cancel(ctx, requestID, requesterID)
+func (s *FriendsService) Cancel(ctx context.Context, requesterID, requestID string, updatedAt *time.Time) (FriendRequestActionResult, error) {
+	when, checkUpdatedAt := s.actionTime(updatedAt)
+	applied, err := s.Friendships.Cancel(ctx, requestID, requesterID, when, checkUpdatedAt)
+	if err != nil {
+		return FriendRequestActionConflict, err
+	}
+	if !applied {
+		return FriendRequestActionConflict, nil
+	}
+	return FriendRequestActionApplied, nil
 }
 
 func (s *FriendsService) AreFriends(ctx context.Context, userA, userB string) (bool, error) {
 	return s.Friendships.AreFriends(ctx, userA, userB)
+}
+
+func (s *FriendsService) LatestFriendshipUpdate(ctx context.Context, userID string) (time.Time, error) {
+	return s.Friendships.LatestFriendshipUpdate(ctx, userID)
+}
+
+func (s *FriendsService) actionTime(updatedAt *time.Time) (time.Time, bool) {
+	if updatedAt != nil {
+		return updatedAt.UTC().Truncate(time.Millisecond), true
+	}
+	if s.Now == nil {
+		s.Now = time.Now
+	}
+	when := s.Now().UTC()
+	return when.Truncate(time.Millisecond), false
 }

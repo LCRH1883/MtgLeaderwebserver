@@ -50,7 +50,9 @@ GET /v1/friends
         "avatar_path": "",
         "avatar_updated_at": null
       },
-      "created_at": "2024-06-02T09:10:11.123Z"
+      "created_at": "2024-06-02T09:10:11.123Z",
+      "updated_at": "2024-06-02T09:10:11.123Z",
+      "resolved_at": null
     }
   ],
   "outgoing_requests": []
@@ -63,6 +65,7 @@ GET /v1/friends/connections
     - `status`: "accepted" | "incoming" | "outgoing"
     - `request_id`: present for incoming/outgoing
     - `created_at`: present for incoming/outgoing
+  - Returns `ETag` and honors `If-None-Match` with `304 Not Modified`.
 
 Example:
 ```
@@ -90,7 +93,8 @@ GET /v1/friends/connections
     },
     "status": "incoming",
     "request_id": "req-1",
-    "created_at": "2024-06-02T09:10:11.123Z"
+    "created_at": "2024-06-02T09:10:11.123Z",
+    "updated_at": "2024-06-02T09:10:11.123Z"
   }
 ]
 ```
@@ -112,20 +116,49 @@ POST /v1/friends/requests
     "avatar_path": "user-2-1717246496789000000.jpg",
     "avatar_updated_at": "2024-06-01T12:34:56.789Z"
   },
-  "created_at": "2024-06-02T09:10:11.123Z"
+  "created_at": "2024-06-02T09:10:11.123Z",
+  "updated_at": "2024-06-02T09:10:11.123Z",
+  "resolved_at": null
 }
 ```
 
 POST /v1/friends/requests/{id}/accept
   - Accept a pending request.
+  - Optional request JSON:
+```
+{ "updated_at": "2024-06-01T12:34:56.789Z" }
+```
+  - If `updated_at` is not newer than the stored request, returns:
+```
+409 Conflict
+[ ...same payload as GET /v1/friends/connections... ]
+```
   - Response: 204 No Content
 
 POST /v1/friends/requests/{id}/decline
   - Decline a pending request.
+  - Optional request JSON:
+```
+{ "updated_at": "2024-06-01T12:34:56.789Z" }
+```
+  - If `updated_at` is not newer than the stored request, returns:
+```
+409 Conflict
+[ ...same payload as GET /v1/friends/connections... ]
+```
   - Response: 204 No Content
 
 POST /v1/friends/requests/{id}/cancel
   - Cancel a pending request sent by the current user.
+  - Optional request JSON:
+```
+{ "updated_at": "2024-06-01T12:34:56.789Z" }
+```
+  - If `updated_at` is not newer than the stored request, returns:
+```
+409 Conflict
+[ ...same payload as GET /v1/friends/connections... ]
+```
   - Response: 204 No Content
 
 UserSummary fields
@@ -141,6 +174,8 @@ FriendRequest fields
 - `id` (string)
 - `user` (UserSummary)
 - `created_at` (string RFC3339 with milliseconds)
+- `updated_at` (string RFC3339 with milliseconds)
+- `resolved_at` (string RFC3339 with milliseconds or null)
 
 FriendConnection fields
 -----------------------
@@ -148,6 +183,7 @@ FriendConnection fields
 - `status` ("accepted" | "incoming" | "outgoing")
 - `request_id` (string, only for incoming/outgoing)
 - `created_at` (string RFC3339 with milliseconds, only for incoming/outgoing)
+- `updated_at` (string RFC3339 with milliseconds, only for incoming/outgoing)
 
 Error responses
 ---------------
@@ -166,6 +202,7 @@ Common codes:
 - `validation_error` (400)
 - `not_found` (404)
 - `friendship_exists` (409)
+- Note: stale `updated_at` conflicts return `409 Conflict` with the full connections payload instead of the error envelope.
 
 Android integration notes
 -------------------------
@@ -176,4 +213,5 @@ Android integration notes
 2) For avatars, prefer `avatar_url` from `/v1/users/me` for the current user.
    For friends, build URLs as `/app/avatars/{avatar_path}?v={avatar_updated_at_unix}`
    or display a default avatar if `avatar_path` is empty.
-3) On accept/decline/cancel, refresh the connections list to stay in sync.
+3) `GET /v1/friends/connections` returns `ETag` and supports `If-None-Match` with `304 Not Modified`.
+4) On accept/decline/cancel, refresh the connections list to stay in sync (409 conflicts already return the latest list).

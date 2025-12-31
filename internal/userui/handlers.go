@@ -784,7 +784,7 @@ func (a *app) handleFriendAccept(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := a.friendsSvc.Accept(r.Context(), u.ID, id); err != nil {
+	if _, err := a.friendsSvc.Accept(r.Context(), u.ID, id, nil); err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			redirectFriends(w, r, q, view, "", "request_not_found")
 			return
@@ -820,7 +820,7 @@ func (a *app) handleFriendDecline(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := a.friendsSvc.Decline(r.Context(), u.ID, id); err != nil {
+	if _, err := a.friendsSvc.Decline(r.Context(), u.ID, id, nil); err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			redirectFriends(w, r, q, view, "", "request_not_found")
 			return
@@ -856,7 +856,7 @@ func (a *app) handleFriendCancel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := a.friendsSvc.Cancel(r.Context(), u.ID, id); err != nil {
+	if _, err := a.friendsSvc.Cancel(r.Context(), u.ID, id, nil); err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			redirectFriends(w, r, q, view, "", "request_not_found")
 			return

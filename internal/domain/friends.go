@@ -8,12 +8,15 @@ type UserSummary struct {
 	DisplayName     string     `json:"display_name,omitempty"`
 	AvatarPath      string     `json:"avatar_path,omitempty"`
 	AvatarUpdatedAt *time.Time `json:"avatar_updated_at,omitempty"`
+	UpdatedAt       *time.Time `json:"-"`
 }
 
 type FriendRequest struct {
-	ID        string      `json:"id"`
-	User      UserSummary `json:"user"`
-	CreatedAt time.Time   `json:"created_at"`
+	ID         string      `json:"id"`
+	User       UserSummary `json:"user"`
+	CreatedAt  time.Time   `json:"created_at"`
+	UpdatedAt  time.Time   `json:"updated_at"`
+	ResolvedAt *time.Time  `json:"resolved_at,omitempty"`
 }
 
 type FriendsOverview struct {
@@ -35,4 +38,5 @@ type FriendConnection struct {
 	Status    FriendStatus `json:"status"`
 	RequestID string       `json:"request_id,omitempty"`
 	CreatedAt time.Time    `json:"created_at,omitempty"`
+	UpdatedAt time.Time    `json:"updated_at,omitempty"`
 }
