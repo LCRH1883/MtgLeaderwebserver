@@ -131,6 +131,21 @@ func (s *AdminUsersStore) SetUserEmail(ctx context.Context, userID, email string
 	return nil
 }
 
+func (s *AdminUsersStore) DeleteUser(ctx context.Context, userID string) error {
+	const q = `
+		DELETE FROM users
+		WHERE id = $1
+	`
+	tag, err := s.pool.Exec(ctx, q, userID)
+	if err != nil {
+		return fmt.Errorf("delete user: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
 func (s *AdminUsersStore) SearchUsers(ctx context.Context, query string, limit, offset int) ([]domain.User, error) {
 	if limit <= 0 || limit > 200 {
 		limit = 50

@@ -450,6 +450,37 @@ func (a *app) handleUserPasswordReset(w http.ResponseWriter, r *http.Request) {
 	redirectUsers(w, r, query, "reset_sent", "")
 }
 
+func (a *app) handleUserDelete(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		redirectUsers(w, r, "", "", "invalid_form")
+		return
+	}
+
+	userID := strings.TrimSpace(r.FormValue("user_id"))
+	query := strings.TrimSpace(r.FormValue("q"))
+	confirm := strings.TrimSpace(r.FormValue("confirm"))
+	if userID == "" {
+		redirectUsers(w, r, query, "", "missing_user")
+		return
+	}
+	if confirm != "DELETE" {
+		redirectUsers(w, r, query, "", "delete_confirm")
+		return
+	}
+
+	if err := a.adminSvc.DeleteUser(r.Context(), userID); err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			redirectUsers(w, r, query, "", "user_not_found")
+			return
+		}
+		a.logger.Error("adminui: delete user failed", "err", err, "user_id", userID)
+		redirectUsers(w, r, query, "", "delete_failed")
+		return
+	}
+
+	redirectUsers(w, r, query, "user_deleted", "")
+}
+
 // minimal duplicate of httpapi.clientIP to avoid import cycles.
 func httpapiClientIP(r *http.Request) string {
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
@@ -492,6 +523,8 @@ func mapUsersNotice(code string) string {
 		return "Password reset email sent."
 	case "email_updated":
 		return "User email updated."
+	case "user_deleted":
+		return "User deleted."
 	default:
 		return ""
 	}
@@ -503,6 +536,8 @@ func mapUsersError(code string) string {
 		return "Invalid form submission."
 	case "missing_user":
 		return "User is required."
+	case "delete_confirm":
+		return "Type DELETE to confirm account deletion."
 	case "invalid_action":
 		return "Invalid action."
 	case "invalid_email":
@@ -521,6 +556,8 @@ func mapUsersError(code string) string {
 		return "User not found."
 	case "reset_failed":
 		return "Failed to send reset email."
+	case "delete_failed":
+		return "Failed to delete user."
 	default:
 		return ""
 	}

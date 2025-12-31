@@ -424,6 +424,50 @@ func (a *app) handleProfileAvatarPost(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (a *app) handleProfileDeletePost(w http.ResponseWriter, r *http.Request) {
+	if a.authSvc == nil {
+		a.templates.renderError(w, http.StatusServiceUnavailable, "Unavailable", "Account deletion is unavailable.")
+		return
+	}
+	u, _, ok := a.currentUser(r)
+	if !ok {
+		http.Redirect(w, r, "/app/login", http.StatusFound)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Redirect(w, r, "/app/profile?error=invalid_form", http.StatusFound)
+		return
+	}
+
+	confirm := strings.TrimSpace(r.FormValue("confirm"))
+	if confirm != "DELETE" {
+		http.Redirect(w, r, "/app/profile?error=delete_confirm", http.StatusFound)
+		return
+	}
+
+	if err := a.authSvc.DeleteUser(r.Context(), u.ID); err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			auth.ClearSessionCookie(w, a.cookieSecure)
+			http.Redirect(w, r, "/app/login?notice=account_deleted", http.StatusFound)
+			return
+		}
+		a.logger.Error("userui: delete account failed", "err", err, "user_id", u.ID)
+		http.Redirect(w, r, "/app/profile?error=delete_failed", http.StatusFound)
+		return
+	}
+
+	auth.ClearSessionCookie(w, a.cookieSecure)
+	http.Redirect(w, r, "/app/login?notice=account_deleted", http.StatusFound)
+}
+
+func (a *app) handleWikiRedirect(w http.ResponseWriter, r *http.Request) {
+	target := "/wiki"
+	if strings.Contains(r.URL.Path, "/delete-account") {
+		target = "/wiki/delete-account"
+	}
+	http.Redirect(w, r, target, http.StatusFound)
+}
+
 func (a *app) handleHome(w http.ResponseWriter, r *http.Request) {
 	u, _, ok := a.currentUser(r)
 	if !ok {
@@ -895,6 +939,8 @@ func mapLoginNotice(code string) string {
 	switch code {
 	case "password_reset":
 		return "Password updated. Sign in with your new password."
+	case "account_deleted":
+		return "Account deleted."
 	default:
 		return ""
 	}
@@ -934,6 +980,12 @@ func mapProfileNotice(code string) string {
 
 func mapProfileError(code string) string {
 	switch code {
+	case "invalid_form":
+		return "Invalid form submission."
+	case "delete_confirm":
+		return "Type DELETE to confirm account deletion."
+	case "delete_failed":
+		return "Account deletion failed."
 	case "avatar_failed":
 		return "Avatar update failed."
 	default:

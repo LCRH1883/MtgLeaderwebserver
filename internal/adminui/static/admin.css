@@ -339,6 +339,11 @@ button{
   box-shadow:0 12px 24px rgba(14,116,144,0.25);
   transition:transform 0.2s ease,box-shadow 0.2s ease;
 }
+button.danger{
+  border-color:rgba(248,113,113,0.8);
+  background:linear-gradient(135deg,#ef4444,#f97316);
+  box-shadow:0 12px 24px rgba(248,113,113,0.25);
+}
 button.ghost{
   background:transparent;
   border-color:var(--line);
@@ -348,6 +353,9 @@ button.ghost{
 button:hover{
   transform:translateY(-1px);
   box-shadow:0 16px 28px rgba(14,116,144,0.35);
+}
+button.danger:hover{
+  box-shadow:0 16px 28px rgba(248,113,113,0.35);
 }
 button:active{
   transform:translateY(0);
@@ -429,6 +437,9 @@ button:active{
   width:auto;
 }
 .reset-button{
+  width:auto;
+}
+.delete-button{
   width:auto;
 }
 .modal{

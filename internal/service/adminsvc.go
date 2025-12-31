@@ -11,6 +11,7 @@ type AdminUsersStore interface {
 	SearchUsers(ctx context.Context, query string, limit, offset int) ([]domain.User, error)
 	GetUserByID(ctx context.Context, id string) (domain.User, error)
 	SetUserEmail(ctx context.Context, userID, email string) error
+	DeleteUser(ctx context.Context, userID string) error
 }
 
 type AdminService struct {
@@ -31,4 +32,8 @@ func (s *AdminService) GetUserByID(ctx context.Context, id string) (domain.User,
 
 func (s *AdminService) UpdateUserEmail(ctx context.Context, userID, email string) error {
 	return s.Users.SetUserEmail(ctx, userID, email)
+}
+
+func (s *AdminService) DeleteUser(ctx context.Context, userID string) error {
+	return s.Users.DeleteUser(ctx, userID)
 }

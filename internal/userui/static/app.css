@@ -7,6 +7,8 @@
   --accent-2:#f59e0b;
   --brand-1:#0f766e;
   --brand-2:#14b8a6;
+  --danger:#dc2626;
+  --danger-shadow:rgba(220,38,38,0.22);
   --accent-soft:rgba(15,118,110,0.18);
   --accent-soft-strong:rgba(15,118,110,0.35);
   --accent-shadow:rgba(15,118,110,0.22);
@@ -253,9 +255,17 @@ button{
   box-shadow:0 12px 24px var(--accent-shadow);
   transition:transform 0.2s ease,box-shadow 0.2s ease,background 0.2s ease;
 }
+button.danger{
+  border-color:var(--danger);
+  background:linear-gradient(135deg,#ef4444,#f97316);
+  box-shadow:0 12px 24px var(--danger-shadow);
+}
 button:hover{
   transform:translateY(-1px);
   box-shadow:0 16px 28px var(--accent-shadow-strong);
+}
+button.danger:hover{
+  box-shadow:0 16px 28px rgba(220,38,38,0.3);
 }
 button:active{
   transform:translateY(0);
@@ -288,6 +298,10 @@ button.ghost{
   padding:18px;
   margin-bottom:20px;
   box-shadow:var(--shadow);
+}
+.danger-panel{
+  border-color:rgba(220,38,38,0.2);
+  background:rgba(254,242,242,0.7);
 }
 .panel-header{
   display:flex;
@@ -558,6 +572,11 @@ button.ghost{
 }
 .profile-form button{
   width:fit-content;
+}
+.delete-form{
+  display:grid;
+  gap:12px;
+  max-width:360px;
 }
 .avatar-form{
   display:grid;

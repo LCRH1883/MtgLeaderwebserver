@@ -229,6 +229,21 @@ func (s *UsersStore) SetPasswordHash(ctx context.Context, userID, passwordHash s
 	return nil
 }
 
+func (s *UsersStore) DeleteUser(ctx context.Context, userID string) error {
+	const q = `
+		DELETE FROM users
+		WHERE id = $1
+	`
+	tag, err := s.pool.Exec(ctx, q, userID)
+	if err != nil {
+		return fmt.Errorf("delete user: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
 func (s *UsersStore) UpdateDisplayName(ctx context.Context, userID, displayName string, updatedAt time.Time) (domain.User, bool, error) {
 	const q = `
 		UPDATE users

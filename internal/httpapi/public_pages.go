@@ -34,6 +34,10 @@ func (a *api) handlePrivacyAndroid(w http.ResponseWriter, r *http.Request) {
 	renderPublicPage(w, http.StatusOK, "Android Privacy Policy", publicPrivacyAndroidBody)
 }
 
+func (a *api) handleWikiDeleteAccount(w http.ResponseWriter, r *http.Request) {
+	renderPublicPage(w, http.StatusOK, "Wiki: Delete Account", publicWikiDeleteAccountBody)
+}
+
 func renderPublicPage(w http.ResponseWriter, status int, title string, body template.HTML) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
@@ -240,6 +244,14 @@ const publicLayout = `<!doctype html>
         font-weight:600;
         text-decoration:none;
       }
+      .steps{
+        margin:16px 0 0;
+        padding-left:18px;
+      }
+      .steps li{
+        margin-bottom:8px;
+        line-height:1.6;
+      }
       footer{
         margin-top:36px;
         padding-top:18px;
@@ -281,6 +293,7 @@ const publicLayout = `<!doctype html>
       </a>
       <nav class="nav">
         <a class="primary" href="/app/login">User Login</a>
+        <a href="/wiki">Wiki</a>
       </nav>
     </header>
     <main>
@@ -290,6 +303,7 @@ const publicLayout = `<!doctype html>
         <div class="link-row">
           <a href="/privacy">Web privacy</a>
           <a href="/privacy/android">Android privacy</a>
+          <a href="/wiki">Account deletion</a>
           <a href="/app/login">User login</a>
         </div>
       </footer>
@@ -384,5 +398,23 @@ var publicPrivacyAndroidBody = template.HTML(`
   <p class="lead">Data is retained while your account is active or as required for service operations. You can request deletion.</p>
   <h2>Your choices</h2>
   <p class="lead">You can update profile information in the app. For deletion requests, use the support contact listed in the Play Store entry.</p>
+</section>
+`)
+
+var publicWikiDeleteAccountBody = template.HTML(`
+<section class="card">
+  <span class="badge">Wiki</span>
+  <h1>Delete your account</h1>
+  <p class="lead">You can permanently delete your MTG Leader account from the web profile page. This removes your profile, matches, and friends.</p>
+  <h2>Steps</h2>
+  <ul class="steps">
+    <li>Sign in at <a href="/app/login">/app/login</a>.</li>
+    <li>Open your profile at <a href="/app/profile">/app/profile</a>.</li>
+    <li>Scroll to the "Delete account" panel.</li>
+    <li>Type <strong>DELETE</strong> in the confirmation field.</li>
+    <li>Click "Delete account" to confirm.</li>
+  </ul>
+  <p class="lead">If you do not see the delete panel, refresh the page or contact support.</p>
+  <p class="lead">Support: <a href="mailto:contact@mtgleader.xyz">contact@mtgleader.xyz</a></p>
 </section>
 `)

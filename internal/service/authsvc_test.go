@@ -22,6 +22,7 @@ type stubUsersStore struct {
 	linkExternalAccountFunc    func(context.Context, string, string, string, string) (domain.ExternalAccount, error)
 	setLastLoginFunc           func(context.Context, string, time.Time) error
 	setPasswordHashFunc        func(context.Context, string, string) error
+	deleteUserFunc             func(context.Context, string) error
 }
 
 func (s *stubUsersStore) CreateUser(ctx context.Context, email, username, passwordHash string) (domain.User, error) {
@@ -93,6 +94,14 @@ func (s *stubUsersStore) SetPasswordHash(ctx context.Context, userID, passwordHa
 		return s.setPasswordHashFunc(ctx, userID, passwordHash)
 	}
 	s.t.Fatalf("SetPasswordHash called unexpectedly")
+	return errors.New("unexpected call")
+}
+
+func (s *stubUsersStore) DeleteUser(ctx context.Context, userID string) error {
+	if s.deleteUserFunc != nil {
+		return s.deleteUserFunc(ctx, userID)
+	}
+	s.t.Fatalf("DeleteUser called unexpectedly")
 	return errors.New("unexpected call")
 }
 

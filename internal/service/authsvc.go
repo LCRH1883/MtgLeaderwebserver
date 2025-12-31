@@ -24,6 +24,7 @@ type UsersStore interface {
 	LinkExternalAccount(ctx context.Context, userID, provider, providerID, email string) (domain.ExternalAccount, error)
 	SetLastLogin(ctx context.Context, userID string, when time.Time) error
 	SetPasswordHash(ctx context.Context, userID, passwordHash string) error
+	DeleteUser(ctx context.Context, userID string) error
 }
 
 type SessionsStore interface {
@@ -145,6 +146,10 @@ func (s *AuthService) Logout(ctx context.Context, sessionID string) error {
 	}
 
 	return s.Sessions.RevokeSession(ctx, sessionID, s.Now())
+}
+
+func (s *AuthService) DeleteUser(ctx context.Context, userID string) error {
+	return s.Users.DeleteUser(ctx, userID)
 }
 
 func (s *AuthService) GetUserForSession(ctx context.Context, sessionID string) (domain.User, error) {

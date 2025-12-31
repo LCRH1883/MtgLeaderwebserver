@@ -74,6 +74,19 @@
   </div>
 </section>
 
+<section class="panel danger-panel">
+  <div class="panel-header">
+    <h2>Delete account</h2>
+    <div class="muted">Permanent</div>
+  </div>
+  <p class="muted">This permanently deletes your account and match history. This cannot be undone.</p>
+  <form class="delete-form" method="post" action="/app/profile/delete">
+    <label class="label" for="delete-confirm">Type DELETE to confirm</label>
+    <input id="delete-confirm" name="confirm" type="text" autocomplete="off" placeholder="DELETE" required />
+    <button type="submit" class="danger">Delete account</button>
+  </form>
+</section>
+
 <script>
 (() => {
   const fileInput = document.getElementById("avatar-file");

@@ -18,6 +18,7 @@
         <th>Joined</th>
         <th>Last Login</th>
         <th>Reset Password</th>
+        <th>Delete</th>
       </tr>
     </thead>
     <tbody>
@@ -31,6 +32,9 @@
         <td>{{.LastLogin}}</td>
         <td>
           <button type="button" class="ghost reset-button" data-user-id="{{.ID}}" data-user-email="{{.Email}}" data-username="{{.Username}}">Reset</button>
+        </td>
+        <td>
+          <button type="button" class="danger delete-button" data-user-id="{{.ID}}" data-user-email="{{.Email}}" data-username="{{.Username}}">Delete</button>
         </td>
       </tr>
       {{end}}
@@ -91,6 +95,29 @@
     <div class="modal-actions">
       <button type="button" class="ghost" id="reset-cancel">Cancel</button>
       <button type="submit" id="reset-submit">Send Reset</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="delete-dialog" class="modal">
+  <form method="post" action="/admin/users/delete" id="delete-form">
+    <div class="modal-header">
+      <h2>Delete Account</h2>
+      <p class="muted">This permanently deletes the user and their data.</p>
+    </div>
+    <div class="modal-body stack">
+      <input type="hidden" name="user_id" id="delete-user-id" />
+      <input type="hidden" name="q" value="{{.Query}}" />
+      <div>
+        <div class="label">User</div>
+        <div class="pill" id="delete-user-label">User</div>
+      </div>
+      <label class="label" for="delete-confirm">Type DELETE to confirm</label>
+      <input id="delete-confirm" name="confirm" type="text" autocomplete="off" placeholder="DELETE" required />
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="ghost" id="delete-cancel">Cancel</button>
+      <button type="submit" class="danger" id="delete-submit" disabled>Delete account</button>
     </div>
   </form>
 </dialog>
@@ -157,6 +184,47 @@
       dialog.close();
     } else {
       dialog.removeAttribute("open");
+    }
+  });
+
+  const deleteDialog = document.getElementById("delete-dialog");
+  const deleteForm = document.getElementById("delete-form");
+  const deleteUserId = document.getElementById("delete-user-id");
+  const deleteUserLabel = document.getElementById("delete-user-label");
+  const deleteConfirm = document.getElementById("delete-confirm");
+  const deleteSubmit = document.getElementById("delete-submit");
+  const deleteCancel = document.getElementById("delete-cancel");
+
+  const updateDeleteState = () => {
+    deleteSubmit.disabled = deleteConfirm.value.trim() !== "DELETE";
+  };
+
+  const openDeleteDialog = (button) => {
+    const id = button.dataset.userId;
+    const name = button.dataset.username || "User";
+    deleteUserId.value = id;
+    deleteUserLabel.textContent = `@${name}`;
+    deleteConfirm.value = "";
+    updateDeleteState();
+    if (deleteDialog.showModal) {
+      deleteDialog.showModal();
+    } else {
+      deleteDialog.setAttribute("open", "true");
+    }
+  };
+
+  if (deleteForm) {
+    deleteConfirm.addEventListener("input", updateDeleteState);
+  }
+
+  document.querySelectorAll(".delete-button").forEach((btn) => {
+    btn.addEventListener("click", () => openDeleteDialog(btn));
+  });
+  deleteCancel.addEventListener("click", () => {
+    if (deleteDialog.close) {
+      deleteDialog.close();
+    } else {
+      deleteDialog.removeAttribute("open");
     }
   });
 })();

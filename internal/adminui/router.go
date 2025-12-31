@@ -75,6 +75,7 @@ func New(opts Opts) http.Handler {
 	mux.HandleFunc("POST /admin/logout", app.handleLogoutPost)
 	mux.HandleFunc("GET /admin/users", app.requireAdmin(app.handleUsersList))
 	mux.HandleFunc("POST /admin/users/reset", app.requireAdmin(app.handleUserPasswordReset))
+	mux.HandleFunc("POST /admin/users/delete", app.requireAdmin(app.handleUserDelete))
 	mux.HandleFunc("GET /admin/password", app.requireAdmin(app.handlePasswordGet))
 	mux.HandleFunc("POST /admin/password", app.requireAdmin(app.handlePasswordPost))
 	mux.HandleFunc("GET /admin/email", app.requireAdmin(app.handleEmailGet))
