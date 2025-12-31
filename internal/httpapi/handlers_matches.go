@@ -14,29 +14,35 @@ type createMatchRequest struct {
 	PlayerIDs            []string                  `json:"player_ids"`
 	WinnerID             string                    `json:"winner_id"`
 	PlayedAt             string                    `json:"played_at"`
+	StartedAt            string                    `json:"started_at"`
+	EndedAt              string                    `json:"ended_at"`
+	StartingSeatIndex    *int                      `json:"starting_seat_index,omitempty"`
 	Format               string                    `json:"format"`
 	TotalDurationSeconds int                       `json:"total_duration_seconds"`
 	TurnCount            int                       `json:"turn_count"`
 	ClientRef            string                    `json:"client_ref"`
 	ClientMatchID        string                    `json:"client_match_id"`
-	UpdatedAt            string                    `json:"updated_at"`
+	UpdatedAt            string                    `json:"updated_at,omitempty"`
 	Results              []domain.MatchResultInput `json:"results"`
-	Match                *matchPayload             `json:"match,omitempty"`
+	Players              []matchPlayerRequest      `json:"players"`
 }
 
 type createMatchResponse struct {
-	Match        domain.Match         `json:"match"`
+	MatchID      string               `json:"match_id"`
+	Match        *domain.Match        `json:"match,omitempty"`
 	StatsSummary *domain.StatsSummary `json:"stats_summary,omitempty"`
 }
 
-type matchPayload struct {
-	PlayerIDs            []string                  `json:"player_ids"`
-	WinnerID             string                    `json:"winner_id"`
-	PlayedAt             string                    `json:"played_at"`
-	Format               string                    `json:"format"`
-	TotalDurationSeconds int                       `json:"total_duration_seconds"`
-	TurnCount            int                       `json:"turn_count"`
-	Results              []domain.MatchResultInput `json:"results"`
+type matchPlayerRequest struct {
+	SeatIndex            int    `json:"seat_index"`
+	UserID               string `json:"user_id,omitempty"`
+	GuestName            string `json:"guest_name,omitempty"`
+	DisplayName          string `json:"display_name,omitempty"`
+	Place                int    `json:"place"`
+	EliminatedTurnNumber *int   `json:"eliminated_turn_number,omitempty"`
+	EliminatedDuringSeat *int   `json:"eliminated_during_seat_index,omitempty"`
+	TotalTurnTimeMs      *int64 `json:"total_turn_time_ms,omitempty"`
+	TurnsTaken           *int   `json:"turns_taken,omitempty"`
 }
 
 func (a *api) handleMatchesCreate(w http.ResponseWriter, r *http.Request) {
@@ -52,10 +58,14 @@ func (a *api) handleMatchesCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updatedAt, err := parseUpdatedAt(req.UpdatedAt)
-	if err != nil {
-		WriteError(w, http.StatusBadRequest, "invalid_updated_at", "updated_at must be RFC3339 UTC with milliseconds")
-		return
+	var updatedAt time.Time
+	if strings.TrimSpace(req.UpdatedAt) != "" {
+		parsed, err := parseUpdatedAt(req.UpdatedAt)
+		if err != nil {
+			WriteError(w, http.StatusBadRequest, "invalid_updated_at", "updated_at must be RFC3339 UTC with milliseconds")
+			return
+		}
+		updatedAt = parsed
 	}
 
 	clientMatchID := strings.TrimSpace(req.ClientMatchID)
@@ -67,22 +77,9 @@ func (a *api) handleMatchesCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	payload := matchPayload{
-		PlayerIDs:            req.PlayerIDs,
-		WinnerID:             req.WinnerID,
-		PlayedAt:             req.PlayedAt,
-		Format:               req.Format,
-		TotalDurationSeconds: req.TotalDurationSeconds,
-		TurnCount:            req.TurnCount,
-		Results:              req.Results,
-	}
-	if req.Match != nil {
-		payload = *req.Match
-	}
-
 	var playedAt *time.Time
-	if strings.TrimSpace(payload.PlayedAt) != "" {
-		t, err := time.Parse(time.RFC3339, payload.PlayedAt)
+	if strings.TrimSpace(req.PlayedAt) != "" {
+		t, err := time.Parse(time.RFC3339, req.PlayedAt)
 		if err != nil {
 			WriteDomainError(w, domain.NewValidationError(map[string]string{"played_at": "must be RFC3339 timestamp"}))
 			return
@@ -90,16 +87,70 @@ func (a *api) handleMatchesCreate(w http.ResponseWriter, r *http.Request) {
 		playedAt = &t
 	}
 
+	var startedAt *time.Time
+	if strings.TrimSpace(req.StartedAt) != "" {
+		t, err := time.Parse(time.RFC3339, req.StartedAt)
+		if err != nil {
+			WriteDomainError(w, domain.NewValidationError(map[string]string{"started_at": "must be RFC3339 timestamp"}))
+			return
+		}
+		startedAt = &t
+	}
+
+	var endedAt *time.Time
+	if strings.TrimSpace(req.EndedAt) != "" {
+		t, err := time.Parse(time.RFC3339, req.EndedAt)
+		if err != nil {
+			WriteDomainError(w, domain.NewValidationError(map[string]string{"ended_at": "must be RFC3339 timestamp"}))
+			return
+		}
+		endedAt = &t
+	}
+
+	if updatedAt.IsZero() {
+		if endedAt != nil {
+			updatedAt = endedAt.UTC().Truncate(time.Millisecond)
+		} else {
+			updatedAt = time.Now().UTC().Truncate(time.Millisecond)
+		}
+	}
+
+	totalDurationSeconds := req.TotalDurationSeconds
+	if totalDurationSeconds == 0 && startedAt != nil && endedAt != nil {
+		diff := int(endedAt.Sub(*startedAt).Seconds())
+		if diff > 0 {
+			totalDurationSeconds = diff
+		}
+	}
+
+	participants := make([]domain.MatchParticipantInput, 0, len(req.Players))
+	for _, p := range req.Players {
+		participants = append(participants, domain.MatchParticipantInput{
+			SeatIndex:        p.SeatIndex,
+			UserID:           strings.TrimSpace(p.UserID),
+			GuestName:        strings.TrimSpace(p.GuestName),
+			DisplayName:      strings.TrimSpace(p.DisplayName),
+			Place:            p.Place,
+			EliminatedTurn:   p.EliminatedTurnNumber,
+			EliminatedDuring: p.EliminatedDuringSeat,
+			TotalTurnTimeMs:  p.TotalTurnTimeMs,
+			TurnsTaken:       p.TurnsTaken,
+		})
+	}
+
 	match, result, err := a.matchSvc.CreateMatch(r.Context(), u.ID, service.CreateMatchParams{
+		StartedAt:            startedAt,
+		EndedAt:              endedAt,
 		PlayedAt:             playedAt,
-		WinnerID:             strings.TrimSpace(payload.WinnerID),
-		PlayerIDs:            payload.PlayerIDs,
-		Format:               domain.GameFormat(strings.TrimSpace(payload.Format)),
-		TotalDurationSeconds: payload.TotalDurationSeconds,
-		TurnCount:            payload.TurnCount,
+		WinnerID:             strings.TrimSpace(req.WinnerID),
+		PlayerIDs:            req.PlayerIDs,
+		Format:               domain.GameFormat(strings.TrimSpace(req.Format)),
+		TotalDurationSeconds: totalDurationSeconds,
+		TurnCount:            req.TurnCount,
 		ClientMatchID:        clientMatchID,
 		UpdatedAt:            updatedAt,
-		Results:              payload.Results,
+		Players:              participants,
+		Results:              req.Results,
 	})
 	if err != nil {
 		WriteDomainError(w, err)
@@ -107,7 +158,7 @@ func (a *api) handleMatchesCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if result == service.MatchCreateConflict {
-		WriteJSON(w, http.StatusConflict, createMatchResponse{Match: match})
+		WriteJSON(w, http.StatusOK, createMatchResponse{MatchID: match.ID, Match: &match})
 		return
 	}
 
@@ -118,7 +169,8 @@ func (a *api) handleMatchesCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	WriteJSON(w, http.StatusCreated, createMatchResponse{
-		Match:        match,
+		MatchID:      match.ID,
+		Match:        &match,
 		StatsSummary: &summary,
 	})
 }

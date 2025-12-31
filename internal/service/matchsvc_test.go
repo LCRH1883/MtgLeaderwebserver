@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"reflect"
 	"testing"
 	"time"
 
@@ -16,15 +15,16 @@ type stubMatchesStore struct {
 	created struct {
 		called               bool
 		createdBy            string
+		startedAt            *time.Time
+		endedAt              *time.Time
 		playedAt             *time.Time
 		winnerID             string
-		playerIDs            []string
+		participants         []domain.MatchParticipantInput
 		format               domain.GameFormat
 		totalDurationSeconds int
 		turnCount            int
 		clientRef            string
 		updatedAt            time.Time
-		results              []domain.MatchResultInput
 	}
 
 	returnID    string
@@ -38,18 +38,19 @@ type stubMatchesStore struct {
 	matchByClientRefErr error
 }
 
-func (s *stubMatchesStore) CreateMatch(ctx context.Context, createdBy string, playedAt *time.Time, winnerID string, playerIDs []string, format domain.GameFormat, totalDurationSeconds, turnCount int, clientRef string, updatedAt time.Time, results []domain.MatchResultInput) (string, bool, error) {
+func (s *stubMatchesStore) CreateMatch(ctx context.Context, createdBy string, startedAt, endedAt, playedAt *time.Time, winnerID string, participants []domain.MatchParticipantInput, format domain.GameFormat, totalDurationSeconds, turnCount int, clientRef string, updatedAt time.Time) (string, bool, error) {
 	s.created.called = true
 	s.created.createdBy = createdBy
+	s.created.startedAt = startedAt
+	s.created.endedAt = endedAt
 	s.created.playedAt = playedAt
 	s.created.winnerID = winnerID
-	s.created.playerIDs = append([]string(nil), playerIDs...)
+	s.created.participants = append([]domain.MatchParticipantInput(nil), participants...)
 	s.created.format = format
 	s.created.totalDurationSeconds = totalDurationSeconds
 	s.created.turnCount = turnCount
 	s.created.clientRef = clientRef
 	s.created.updatedAt = updatedAt
-	s.created.results = append([]domain.MatchResultInput(nil), results...)
 	return s.returnID, s.createdFlag, s.err
 }
 
@@ -156,6 +157,16 @@ func TestCreateMatchAllowsTies(t *testing.T) {
 	if store.created.format != domain.FormatModern {
 		t.Fatalf("expected format to be modern, got %q", store.created.format)
 	}
+	if len(store.created.participants) != 3 {
+		t.Fatalf("expected 3 participants, got %d", len(store.created.participants))
+	}
+	places := make(map[string]int, len(store.created.participants))
+	for _, p := range store.created.participants {
+		places[p.UserID] = p.Place
+	}
+	if places["u1"] != 1 || places["u2"] != 2 || places["u3"] != 2 {
+		t.Fatalf("unexpected participant places: %v", places)
+	}
 }
 
 func TestCreateMatchLegacyPayload(t *testing.T) {
@@ -192,15 +203,18 @@ func TestCreateMatchLegacyPayload(t *testing.T) {
 	if store.created.clientRef != "device-1" {
 		t.Fatalf("expected trimmed client ref, got %q", store.created.clientRef)
 	}
-	if len(store.created.results) != 0 {
-		t.Fatalf("expected no results for legacy payload, got %d", len(store.created.results))
-	}
 	if store.created.winnerID != "u2" {
 		t.Fatalf("expected winner u2, got %q", store.created.winnerID)
 	}
-	wantPlayers := []string{"u2", "u3", "u1"}
-	if !sameStringSet(store.created.playerIDs, wantPlayers) {
-		t.Fatalf("expected players %v, got %v", wantPlayers, store.created.playerIDs)
+	if len(store.created.participants) != 3 {
+		t.Fatalf("expected 3 participants, got %d", len(store.created.participants))
+	}
+	places := make(map[string]int, len(store.created.participants))
+	for _, p := range store.created.participants {
+		places[p.UserID] = p.Place
+	}
+	if places["u2"] != 1 || places["u1"] != 2 || places["u3"] != 2 {
+		t.Fatalf("unexpected participant places: %v", places)
 	}
 }
 
@@ -243,6 +257,38 @@ func TestCreateMatchConflictOnClientMatchID(t *testing.T) {
 	}
 }
 
+func TestCreateMatchWithGuestParticipant(t *testing.T) {
+	store := &stubMatchesStore{
+		returnID:    "match-10",
+		createdFlag: true,
+		matchForUser: domain.Match{
+			ID: "match-10",
+		},
+	}
+	svc := &MatchService{Matches: store}
+
+	match, result, err := svc.CreateMatch(context.Background(), "u1", CreateMatchParams{
+		ClientMatchID: "client-10",
+		UpdatedAt:     time.Now(),
+		Players: []domain.MatchParticipantInput{
+			{SeatIndex: 0, UserID: "u1", DisplayName: "Player One", Place: 1},
+			{SeatIndex: 1, GuestName: "Guest", DisplayName: "Guest", Place: 2},
+		},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result != MatchCreateApplied {
+		t.Fatalf("expected match applied, got %v", result)
+	}
+	if match.ID != "match-10" {
+		t.Fatalf("unexpected match id: %s", match.ID)
+	}
+	if len(store.created.participants) != 2 {
+		t.Fatalf("expected 2 participants, got %d", len(store.created.participants))
+	}
+}
+
 func expectValidation(t *testing.T, err error) {
 	t.Helper()
 	if err == nil {
@@ -251,21 +297,4 @@ func expectValidation(t *testing.T, err error) {
 	if !errors.Is(err, domain.ErrValidation) {
 		t.Fatalf("expected validation error, got %v", err)
 	}
-}
-
-func sameStringSet(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	copyA := append([]string(nil), a...)
-	copyB := append([]string(nil), b...)
-	return reflect.DeepEqual(stringSet(copyA), stringSet(copyB))
-}
-
-func stringSet(in []string) map[string]bool {
-	out := make(map[string]bool, len(in))
-	for _, v := range in {
-		out[v] = true
-	}
-	return out
 }

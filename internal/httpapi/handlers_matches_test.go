@@ -19,7 +19,7 @@ type stubMatchesStore struct {
 	getMatchByClientRefFunc func(context.Context, string, string) (domain.Match, error)
 }
 
-func (s *stubMatchesStore) CreateMatch(ctx context.Context, createdBy string, playedAt *time.Time, winnerID string, playerIDs []string, format domain.GameFormat, totalDurationSeconds, turnCount int, clientRef string, updatedAt time.Time, results []domain.MatchResultInput) (string, bool, error) {
+func (s *stubMatchesStore) CreateMatch(ctx context.Context, createdBy string, startedAt, endedAt, playedAt *time.Time, winnerID string, participants []domain.MatchParticipantInput, format domain.GameFormat, totalDurationSeconds, turnCount int, clientRef string, updatedAt time.Time) (string, bool, error) {
 	s.t.Fatalf("CreateMatch called unexpectedly")
 	return "", false, context.Canceled
 }
@@ -109,7 +109,7 @@ func TestMatchesCreateConflictReturnsMatch(t *testing.T) {
 	rr := httptest.NewRecorder()
 	api.handleMatchesCreate(rr, req)
 
-	if rr.Code != http.StatusConflict {
+	if rr.Code != http.StatusOK {
 		t.Fatalf("unexpected status: %d", rr.Code)
 	}
 
@@ -117,7 +117,10 @@ func TestMatchesCreateConflictReturnsMatch(t *testing.T) {
 	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if resp.Match.ID != "match-1" {
-		t.Fatalf("expected match to be returned, got %q", resp.Match.ID)
+	if resp.MatchID != "match-1" {
+		t.Fatalf("expected match id to be returned, got %q", resp.MatchID)
+	}
+	if resp.Match == nil || resp.Match.ID != "match-1" {
+		t.Fatalf("expected match to be returned, got %#v", resp.Match)
 	}
 }

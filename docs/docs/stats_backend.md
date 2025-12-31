@@ -156,22 +156,37 @@ Indexes:
 #### Preferred payload (v2)
 ```json
 {
-  "updated_at": "2025-12-29T20:00:00.000Z",
   "client_match_id": "device-generated-uuid",
-  "played_at": "2025-12-29T20:00:00Z",
+  "updated_at": "2025-12-29T20:00:00.000Z",
+  "started_at": "2025-12-29T18:00:00Z",
+  "ended_at": "2025-12-29T20:00:00Z",
   "format": "commander",
   "total_duration_seconds": 5400,
   "turn_count": 12,
-  "results": [
-    {"id":"USER_1","rank":1},
-    {"id":"USER_2","rank":2},
-    {"id":"USER_3","rank":3, "elimination_turn": 10, "elimination_batch": 2},
-    {"id":"USER_4","rank":3, "elimination_turn": 10, "elimination_batch": 2}
+  "players": [
+    {
+      "seat_index": 0,
+      "user_id": "USER_1",
+      "display_name": "Player One",
+      "place": 1,
+      "eliminated_turn_number": null,
+      "eliminated_during_seat_index": null,
+      "total_turn_time_ms": 123456,
+      "turns_taken": 15
+    },
+    {
+      "seat_index": 1,
+      "guest_name": "Guest",
+      "display_name": "Guest",
+      "place": 2,
+      "eliminated_turn_number": 10,
+      "eliminated_during_seat_index": 0
+    }
   ]
 }
 
 Notes:
-- `updated_at` is required and must be RFC3339 UTC with milliseconds.
+- `updated_at` is optional; if provided it must be RFC3339 UTC with milliseconds.
 - `client_match_id` is strongly recommended for idempotency.
 - `client_ref` is accepted as a legacy alias for `client_match_id` if needed.
 
@@ -180,21 +195,28 @@ Validation rules:
 
 Must contain at least 2 unique players.
 
-Exactly one rank = 1 (single winner).
+Exactly one place = 1 (single winner).
 
-All results[].id must be among the participant list (including creator).
+Seats must be unique and contiguous from 0..N-1.
 
-The backend derives winner_id from rank=1 and sets matches.winner_id.
+Each player must include exactly one of user_id or guest_name.
+
+The creator must be included in the player list.
+
+The backend derives winner_id from place=1 and sets matches.winner_id.
+
+Only the creator or accepted friends can be included as user_id entries.
 
 Idempotency:
 
-If (created_by, client_match_id) already exists, return 409 with the existing match record.
+If (created_by, client_match_id) already exists, return 200 with the existing match record.
 Matches are immutable; newer `updated_at` values still return the existing record.
 
 Response:
 
 ```
 {
+  "match_id": "MATCH_UUID",
   "match": { "id": "MATCH_UUID", "...": "..." },
   "stats_summary": { "...": "..." }
 }
@@ -205,7 +227,6 @@ Legacy payload (backward compatibility)
 Older clients may send:
 
 {
-  "updated_at": "2025-12-29T20:00:00.000Z",
   "played_at": "2025-12-29T20:00:00Z",
   "winner_id": "USER_1",
   "player_ids": ["USER_2","USER_3"]
@@ -238,13 +259,15 @@ Response (example shape):
   "matches_played": 42,
   "wins": 12,
   "losses": 30,
+  "win_pct": 0.2857,
   "avg_turn_seconds": 75,
   "by_format": {
     "commander": {"matches_played": 20, "wins": 7, "losses": 13, "avg_turn_seconds": 80},
     "modern": {"matches_played": 22, "wins": 5, "losses": 17, "avg_turn_seconds": 70}
   },
   "most_often_beat": {"opponent":{"id":"...","username":"bob"}, "count": 6},
-  "most_often_beats_you": {"opponent":{"id":"...","username":"alice"}, "count": 9}
+  "most_often_beats_you": {"opponent":{"id":"...","username":"alice"}, "count": 9},
+  "guest_head_to_head": [{"guest_name":"Guest","wins":2,"losses":1}]
 }
 
 
@@ -256,9 +279,13 @@ wins: completed matches where winner_id = user
 
 losses: completed matches where winner_id != user
 
+win_pct: wins / matches_played (0 when matches_played is 0)
+
 avg_turn_seconds: weighted average across matches:
 
 SUM(total_duration_seconds) / SUM(turn_count) for completed matches with turn_count > 0
+
+guest_head_to_head: winner-only guest stats for the authenticated user
 
 GET /v1/stats/head-to-head/{id} — stats vs a specific opponent
 

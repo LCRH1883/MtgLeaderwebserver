@@ -31,7 +31,7 @@ func normalizeFormat(format pgtype.Text) domain.GameFormat {
 	return domain.GameFormat(f)
 }
 
-func (s *MatchesStore) CreateMatch(ctx context.Context, createdBy string, playedAt *time.Time, winnerID string, playerIDs []string, format domain.GameFormat, totalDurationSeconds, turnCount int, clientRef string, updatedAt time.Time, results []domain.MatchResultInput) (string, bool, error) {
+func (s *MatchesStore) CreateMatch(ctx context.Context, createdBy string, startedAt, endedAt, playedAt *time.Time, winnerID string, participants []domain.MatchParticipantInput, format domain.GameFormat, totalDurationSeconds, turnCount int, clientRef string, updatedAt time.Time) (string, bool, error) {
 	if clientRef != "" {
 		var existingID pgtype.UUID
 		err := s.pool.QueryRow(ctx, `SELECT id FROM matches WHERE created_by = $1 AND client_ref = $2`, createdBy, clientRef).Scan(&existingID)
@@ -50,8 +50,8 @@ func (s *MatchesStore) CreateMatch(ctx context.Context, createdBy string, played
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	const insertMatch = `
-		INSERT INTO matches (created_by, played_at, winner_id, format, total_duration_seconds, turn_count, client_ref, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO matches (created_by, played_at, winner_id, format, total_duration_seconds, turn_count, client_ref, updated_at, started_at, ended_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		RETURNING id
 	`
 
@@ -59,12 +59,22 @@ func (s *MatchesStore) CreateMatch(ctx context.Context, createdBy string, played
 	var playedAtAny any
 	if playedAt != nil {
 		playedAtAny = *playedAt
+	} else if endedAt != nil {
+		playedAtAny = *endedAt
 	}
 	var winnerIDAny any
 	if winnerID != "" {
 		winnerIDAny = winnerID
 	}
-	if err := tx.QueryRow(ctx, insertMatch, createdBy, playedAtAny, winnerIDAny, format, totalDurationSeconds, turnCount, nullIfEmpty(clientRef), updatedAt).Scan(&matchIDUUID); err != nil {
+	var startedAtAny any
+	if startedAt != nil {
+		startedAtAny = *startedAt
+	}
+	var endedAtAny any
+	if endedAt != nil {
+		endedAtAny = *endedAt
+	}
+	if err := tx.QueryRow(ctx, insertMatch, createdBy, playedAtAny, winnerIDAny, format, totalDurationSeconds, turnCount, nullIfEmpty(clientRef), updatedAt, startedAtAny, endedAtAny).Scan(&matchIDUUID); err != nil {
 		var pgerr *pgconn.PgError
 		if errors.As(err, &pgerr) && pgerr.ConstraintName == "matches_client_ref_uq" {
 			var existingID pgtype.UUID
@@ -77,41 +87,57 @@ func (s *MatchesStore) CreateMatch(ctx context.Context, createdBy string, played
 	}
 	matchID := uuidOrEmpty(matchIDUUID)
 
-	const insertPlayer = `
-		INSERT INTO match_players (match_id, user_id)
-		VALUES ($1, $2)
+	const insertParticipant = `
+		INSERT INTO match_participants (
+			match_id, seat_index, user_id, guest_name, display_name, place,
+			eliminated_turn_number, eliminated_during_seat_index, total_turn_time_ms, turns_taken
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	`
-	for _, pid := range playerIDs {
-		if _, err := tx.Exec(ctx, insertPlayer, matchID, pid); err != nil {
+	for _, participant := range participants {
+		var userIDAny any
+		if participant.UserID != "" {
+			userIDAny = participant.UserID
+		}
+		var guestNameAny any
+		if participant.GuestName != "" {
+			guestNameAny = participant.GuestName
+		}
+		var eliminatedTurnAny any
+		if participant.EliminatedTurn != nil {
+			eliminatedTurnAny = *participant.EliminatedTurn
+		}
+		var eliminatedDuringAny any
+		if participant.EliminatedDuring != nil {
+			eliminatedDuringAny = *participant.EliminatedDuring
+		}
+		var totalTurnTimeAny any
+		if participant.TotalTurnTimeMs != nil {
+			totalTurnTimeAny = *participant.TotalTurnTimeMs
+		}
+		var turnsTakenAny any
+		if participant.TurnsTaken != nil {
+			turnsTakenAny = *participant.TurnsTaken
+		}
+		if _, err := tx.Exec(
+			ctx,
+			insertParticipant,
+			matchID,
+			participant.SeatIndex,
+			userIDAny,
+			guestNameAny,
+			participant.DisplayName,
+			participant.Place,
+			eliminatedTurnAny,
+			eliminatedDuringAny,
+			totalTurnTimeAny,
+			turnsTakenAny,
+		); err != nil {
 			var pgerr *pgconn.PgError
 			if errors.As(err, &pgerr) && pgerr.Code == "23503" {
 				return "", false, domain.ErrValidation
 			}
-			return "", false, fmt.Errorf("insert match player: %w", err)
-		}
-	}
-
-	if len(results) > 0 {
-		const insertResult = `
-			INSERT INTO match_player_results (match_id, user_id, rank, elimination_turn, elimination_batch)
-			VALUES ($1, $2, $3, $4, $5)
-		`
-		for _, res := range results {
-			var elimTurn any
-			if res.EliminationTurn != nil {
-				elimTurn = *res.EliminationTurn
-			}
-			var elimBatch any
-			if res.EliminationBatch != nil {
-				elimBatch = *res.EliminationBatch
-			}
-			if _, err := tx.Exec(ctx, insertResult, matchID, res.ID, res.Rank, elimTurn, elimBatch); err != nil {
-				var pgerr *pgconn.PgError
-				if errors.As(err, &pgerr) && pgerr.Code == "23503" {
-					return "", false, domain.ErrValidation
-				}
-				return "", false, fmt.Errorf("insert match result: %w", err)
-			}
+			return "", false, fmt.Errorf("insert match participant: %w", err)
 		}
 	}
 
@@ -126,12 +152,17 @@ func (s *MatchesStore) ListMatchesForUser(ctx context.Context, userID string, li
 		limit = 25
 	}
 
-	// List matches where user participated.
+	// List matches where user participated (new participants table or legacy match_players).
 	const q = `
-		SELECT m.id, m.created_by, m.created_at, m.updated_at, m.played_at, m.winner_id, m.format, m.total_duration_seconds, m.turn_count, m.client_ref
+		SELECT m.id, m.created_by, m.created_at, m.updated_at, m.started_at, m.ended_at, m.played_at, m.winner_id,
+		       m.format, m.total_duration_seconds, m.turn_count, m.client_ref
 		FROM matches m
-		JOIN match_players mp ON mp.match_id = m.id
-		WHERE mp.user_id = $1
+		WHERE
+			EXISTS (SELECT 1 FROM match_participants p WHERE p.match_id = m.id AND p.user_id = $1)
+			OR (
+				NOT EXISTS (SELECT 1 FROM match_participants p WHERE p.match_id = m.id)
+				AND EXISTS (SELECT 1 FROM match_players mp WHERE mp.match_id = m.id AND mp.user_id = $1)
+			)
 		ORDER BY m.created_at DESC
 		LIMIT $2
 	`
@@ -147,6 +178,8 @@ func (s *MatchesStore) ListMatchesForUser(ctx context.Context, userID string, li
 		createdBy    pgtype.UUID
 		createdAt    time.Time
 		updatedAt    time.Time
+		startedAt    pgtype.Timestamptz
+		endedAt      pgtype.Timestamptz
 		playedAt     pgtype.Timestamptz
 		winnerID     pgtype.UUID
 		format       pgtype.Text
@@ -158,7 +191,7 @@ func (s *MatchesStore) ListMatchesForUser(ctx context.Context, userID string, li
 	var tmp []matchRow
 	for rows.Next() {
 		var r matchRow
-		if err := rows.Scan(&r.idUUID, &r.createdBy, &r.createdAt, &r.updatedAt, &r.playedAt, &r.winnerID, &r.format, &r.durationSecs, &r.turnCount, &r.clientRef); err != nil {
+		if err := rows.Scan(&r.idUUID, &r.createdBy, &r.createdAt, &r.updatedAt, &r.startedAt, &r.endedAt, &r.playedAt, &r.winnerID, &r.format, &r.durationSecs, &r.turnCount, &r.clientRef); err != nil {
 			return nil, fmt.Errorf("scan match: %w", err)
 		}
 		tmp = append(tmp, r)
@@ -182,6 +215,8 @@ func (s *MatchesStore) ListMatchesForUser(ctx context.Context, userID string, li
 			CreatedAt:            r.createdAt,
 			UpdatedAt:            r.updatedAt,
 			ClientMatchID:        textOrEmpty(r.clientRef),
+			StartedAt:            timestamptzPtr(r.startedAt),
+			EndedAt:              timestamptzPtr(r.endedAt),
 			PlayedAt:             timestamptzPtr(r.playedAt),
 			WinnerID:             winnerID,
 			Format:               normalizeFormat(r.format),
@@ -196,10 +231,17 @@ func (s *MatchesStore) ListMatchesForUser(ctx context.Context, userID string, li
 
 func (s *MatchesStore) GetMatchForUser(ctx context.Context, userID, matchID string) (domain.Match, error) {
 	const q = `
-		SELECT m.id, m.created_by, m.created_at, m.updated_at, m.played_at, m.winner_id, m.format, m.total_duration_seconds, m.turn_count, m.client_ref
+		SELECT m.id, m.created_by, m.created_at, m.updated_at, m.started_at, m.ended_at, m.played_at, m.winner_id,
+		       m.format, m.total_duration_seconds, m.turn_count, m.client_ref
 		FROM matches m
-		JOIN match_players mp ON mp.match_id = m.id
-		WHERE m.id = $1 AND mp.user_id = $2
+		WHERE m.id = $1
+		  AND (
+		    EXISTS (SELECT 1 FROM match_participants p WHERE p.match_id = m.id AND p.user_id = $2)
+		    OR (
+		      NOT EXISTS (SELECT 1 FROM match_participants p WHERE p.match_id = m.id)
+		      AND EXISTS (SELECT 1 FROM match_players mp WHERE mp.match_id = m.id AND mp.user_id = $2)
+		    )
+		  )
 		LIMIT 1
 	`
 	var (
@@ -207,6 +249,8 @@ func (s *MatchesStore) GetMatchForUser(ctx context.Context, userID, matchID stri
 		createdBy    pgtype.UUID
 		createdAt    time.Time
 		updatedAt    time.Time
+		startedAt    pgtype.Timestamptz
+		endedAt      pgtype.Timestamptz
 		playedAt     pgtype.Timestamptz
 		winnerID     pgtype.UUID
 		format       pgtype.Text
@@ -219,6 +263,8 @@ func (s *MatchesStore) GetMatchForUser(ctx context.Context, userID, matchID stri
 		&createdBy,
 		&createdAt,
 		&updatedAt,
+		&startedAt,
+		&endedAt,
 		&playedAt,
 		&winnerID,
 		&format,
@@ -245,6 +291,8 @@ func (s *MatchesStore) GetMatchForUser(ctx context.Context, userID, matchID stri
 		CreatedAt:            createdAt,
 		UpdatedAt:            updatedAt,
 		ClientMatchID:        textOrEmpty(clientRef),
+		StartedAt:            timestamptzPtr(startedAt),
+		EndedAt:              timestamptzPtr(endedAt),
 		PlayedAt:             timestamptzPtr(playedAt),
 		WinnerID:             winner,
 		Format:               normalizeFormat(format),
@@ -260,7 +308,8 @@ func (s *MatchesStore) GetMatchByClientRef(ctx context.Context, createdBy, clien
 	}
 
 	const q = `
-		SELECT m.id, m.created_by, m.created_at, m.updated_at, m.played_at, m.winner_id, m.format, m.total_duration_seconds, m.turn_count, m.client_ref
+		SELECT m.id, m.created_by, m.created_at, m.updated_at, m.started_at, m.ended_at, m.played_at, m.winner_id,
+		       m.format, m.total_duration_seconds, m.turn_count, m.client_ref
 		FROM matches m
 		WHERE m.created_by = $1 AND m.client_ref = $2
 		LIMIT 1
@@ -270,6 +319,8 @@ func (s *MatchesStore) GetMatchByClientRef(ctx context.Context, createdBy, clien
 		createdByUUID pgtype.UUID
 		createdAt     time.Time
 		updatedAt     time.Time
+		startedAt     pgtype.Timestamptz
+		endedAt       pgtype.Timestamptz
 		playedAt      pgtype.Timestamptz
 		winnerID      pgtype.UUID
 		format        pgtype.Text
@@ -282,6 +333,8 @@ func (s *MatchesStore) GetMatchByClientRef(ctx context.Context, createdBy, clien
 		&createdByUUID,
 		&createdAt,
 		&updatedAt,
+		&startedAt,
+		&endedAt,
 		&playedAt,
 		&winnerID,
 		&format,
@@ -308,6 +361,8 @@ func (s *MatchesStore) GetMatchByClientRef(ctx context.Context, createdBy, clien
 		CreatedAt:            createdAt,
 		UpdatedAt:            updatedAt,
 		ClientMatchID:        textOrEmpty(clientRefText),
+		StartedAt:            timestamptzPtr(startedAt),
+		EndedAt:              timestamptzPtr(endedAt),
 		PlayedAt:             timestamptzPtr(playedAt),
 		WinnerID:             winner,
 		Format:               normalizeFormat(format),
@@ -318,6 +373,99 @@ func (s *MatchesStore) GetMatchByClientRef(ctx context.Context, createdBy, clien
 }
 
 func (s *MatchesStore) listPlayers(ctx context.Context, matchID string, winnerID string) ([]domain.MatchPlayer, error) {
+	const q = `
+		SELECT
+			p.seat_index,
+			p.user_id,
+			u.username,
+			u.display_name,
+			p.guest_name,
+			p.display_name,
+			p.place,
+			p.eliminated_turn_number,
+			p.eliminated_during_seat_index,
+			p.total_turn_time_ms,
+			p.turns_taken
+		FROM match_participants p
+		LEFT JOIN users u ON u.id = p.user_id
+		WHERE p.match_id = $1
+		ORDER BY p.place ASC, p.seat_index ASC
+	`
+
+	rows, err := s.pool.Query(ctx, q, matchID)
+	if err != nil {
+		return nil, fmt.Errorf("list match participants: %w", err)
+	}
+	defer rows.Close()
+
+	var out []domain.MatchPlayer
+	for rows.Next() {
+		var (
+			seatIndex        int
+			userID           pgtype.UUID
+			username         pgtype.Text
+			userDisplayName  pgtype.Text
+			guestName        pgtype.Text
+			displayName      string
+			place            int
+			eliminatedTurn   pgtype.Int4
+			eliminatedDuring pgtype.Int4
+			totalTurnTimeMs  pgtype.Int8
+			turnsTaken       pgtype.Int4
+		)
+		if err := rows.Scan(&seatIndex, &userID, &username, &userDisplayName, &guestName, &displayName, &place, &eliminatedTurn, &eliminatedDuring, &totalTurnTimeMs, &turnsTaken); err != nil {
+			return nil, fmt.Errorf("scan match participant: %w", err)
+		}
+		id := uuidOrEmpty(userID)
+		name := textOrEmpty(username)
+		display := strings.TrimSpace(displayName)
+		if display == "" {
+			display = textOrEmpty(userDisplayName)
+		}
+
+		placeCopy := place
+		seatCopy := seatIndex
+		elimTurn := int4Ptr(eliminatedTurn)
+		elimDuring := int4Ptr(eliminatedDuring)
+		turns := int4Ptr(turnsTaken)
+		var totalMs *int64
+		if totalTurnTimeMs.Valid {
+			v := totalTurnTimeMs.Int64
+			totalMs = &v
+		}
+
+		isWinner := false
+		if winnerID != "" {
+			isWinner = id != "" && id == winnerID
+		} else if place == 1 {
+			isWinner = true
+		}
+
+		out = append(out, domain.MatchPlayer{
+			User:             domain.UserSummary{ID: id, Username: name, DisplayName: display},
+			IsWinner:         isWinner,
+			Rank:             &placeCopy,
+			SeatIndex:        &seatCopy,
+			GuestName:        textOrEmpty(guestName),
+			DisplayName:      display,
+			Place:            &placeCopy,
+			EliminatedTurn:   elimTurn,
+			EliminationTurn:  elimTurn,
+			EliminatedDuring: elimDuring,
+			TotalTurnTimeMs:  totalMs,
+			TurnsTaken:       turns,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("list match participants: %w", err)
+	}
+	if len(out) > 0 {
+		return out, nil
+	}
+	return s.listLegacyPlayers(ctx, matchID, winnerID)
+}
+
+func (s *MatchesStore) listLegacyPlayers(ctx context.Context, matchID string, winnerID string) ([]domain.MatchPlayer, error) {
 	const q = `
 		SELECT u.id, u.username, r.rank, r.elimination_turn, r.elimination_batch
 		FROM match_players mp
@@ -350,6 +498,7 @@ func (s *MatchesStore) listPlayers(ctx context.Context, matchID string, winnerID
 			User:             domain.UserSummary{ID: id, Username: username},
 			IsWinner:         winnerID != "" && id == winnerID,
 			Rank:             int4Ptr(rank),
+			Place:            int4Ptr(rank),
 			EliminationTurn:  int4Ptr(eliminationTurn),
 			EliminationBatch: int4Ptr(eliminationBatch),
 		})
@@ -362,20 +511,43 @@ func (s *MatchesStore) listPlayers(ctx context.Context, matchID string, winnerID
 
 func (s *MatchesStore) StatsSummary(ctx context.Context, userID string) (domain.StatsSummary, error) {
 	const q = `
+		WITH participants AS (
+			SELECT match_id, user_id, guest_name, place
+			FROM match_participants
+			UNION ALL
+			SELECT mp.match_id, mp.user_id, NULL::text AS guest_name,
+			       CASE
+			         WHEN m.winner_id = mp.user_id THEN 1
+			         WHEN m.winner_id IS NOT NULL THEN 2
+			         ELSE NULL
+			       END AS place
+			FROM match_players mp
+			JOIN matches m ON m.id = mp.match_id
+			WHERE NOT EXISTS (SELECT 1 FROM match_participants p WHERE p.match_id = mp.match_id)
+		),
+		completed AS (
+			SELECT DISTINCT match_id FROM participants WHERE place = 1
+		),
+		user_matches AS (
+			SELECT DISTINCT p.match_id
+			FROM participants p
+			JOIN completed c ON c.match_id = p.match_id
+			WHERE p.user_id = $1
+		)
 		SELECT
-			COUNT(*) FILTER (WHERE m.winner_id IS NOT NULL)::int AS matches_played,
-			COALESCE(SUM(CASE WHEN m.winner_id = $1 THEN 1 ELSE 0 END), 0)::int AS wins,
-			COALESCE(SUM(CASE WHEN m.winner_id IS NOT NULL AND m.winner_id <> $1 THEN 1 ELSE 0 END), 0)::int AS losses,
-			COALESCE(SUM(CASE WHEN m.winner_id IS NOT NULL AND m.turn_count > 0 THEN m.total_duration_seconds ELSE 0 END), 0)::int AS total_seconds,
-			COALESCE(SUM(CASE WHEN m.winner_id IS NOT NULL AND m.turn_count > 0 THEN m.turn_count ELSE 0 END), 0)::int AS total_turns
-		FROM matches m
-		JOIN match_players mp ON mp.match_id = m.id
-		WHERE mp.user_id = $1
+			COUNT(*)::int AS matches_played,
+			COALESCE(SUM(CASE WHEN p.place = 1 THEN 1 ELSE 0 END), 0)::int AS wins,
+			COALESCE(SUM(CASE WHEN m.turn_count > 0 THEN m.total_duration_seconds ELSE 0 END), 0)::int AS total_seconds,
+			COALESCE(SUM(CASE WHEN m.turn_count > 0 THEN m.turn_count ELSE 0 END), 0)::int AS total_turns
+		FROM user_matches um
+		JOIN matches m ON m.id = um.match_id
+		JOIN participants p ON p.match_id = um.match_id AND p.user_id = $1
 	`
-	var played, wins, losses, totalSeconds, totalTurns int
-	if err := s.pool.QueryRow(ctx, q, userID).Scan(&played, &wins, &losses, &totalSeconds, &totalTurns); err != nil {
+	var played, wins, totalSeconds, totalTurns int
+	if err := s.pool.QueryRow(ctx, q, userID).Scan(&played, &wins, &totalSeconds, &totalTurns); err != nil {
 		return domain.StatsSummary{}, fmt.Errorf("stats summary: %w", err)
 	}
+	losses := played - wins
 	avgTurn := 0
 	if totalTurns > 0 {
 		avgTurn = totalSeconds / totalTurns
@@ -393,30 +565,62 @@ func (s *MatchesStore) StatsSummary(ctx context.Context, userID string) (domain.
 	if err != nil {
 		return domain.StatsSummary{}, err
 	}
+	guestHeadToHead, err := s.guestHeadToHead(ctx, userID)
+	if err != nil {
+		return domain.StatsSummary{}, err
+	}
+	winPct := 0.0
+	if played > 0 {
+		winPct = float64(wins) / float64(played)
+	}
 
 	return domain.StatsSummary{
 		MatchesPlayed:     played,
 		Wins:              wins,
 		Losses:            losses,
+		WinPct:            winPct,
 		AvgTurnSeconds:    avgTurn,
 		ByFormat:          byFormat,
 		MostOftenBeat:     mostBeat,
 		MostOftenBeatsYou: mostBeats,
+		GuestHeadToHead:   guestHeadToHead,
 	}, nil
 }
 
 func (s *MatchesStore) statsSummaryByFormat(ctx context.Context, userID string) (map[string]domain.StatsSummary, error) {
 	const q = `
+		WITH participants AS (
+			SELECT match_id, user_id, guest_name, place
+			FROM match_participants
+			UNION ALL
+			SELECT mp.match_id, mp.user_id, NULL::text AS guest_name,
+			       CASE
+			         WHEN m.winner_id = mp.user_id THEN 1
+			         WHEN m.winner_id IS NOT NULL THEN 2
+			         ELSE NULL
+			       END AS place
+			FROM match_players mp
+			JOIN matches m ON m.id = mp.match_id
+			WHERE NOT EXISTS (SELECT 1 FROM match_participants p WHERE p.match_id = mp.match_id)
+		),
+		completed AS (
+			SELECT DISTINCT match_id FROM participants WHERE place = 1
+		),
+		user_matches AS (
+			SELECT DISTINCT p.match_id
+			FROM participants p
+			JOIN completed c ON c.match_id = p.match_id
+			WHERE p.user_id = $1
+		)
 		SELECT
 			m.format,
-			COUNT(*) FILTER (WHERE m.winner_id IS NOT NULL)::int AS matches_played,
-			COALESCE(SUM(CASE WHEN m.winner_id = $1 THEN 1 ELSE 0 END), 0)::int AS wins,
-			COALESCE(SUM(CASE WHEN m.winner_id IS NOT NULL AND m.winner_id <> $1 THEN 1 ELSE 0 END), 0)::int AS losses,
-			COALESCE(SUM(CASE WHEN m.winner_id IS NOT NULL AND m.turn_count > 0 THEN m.total_duration_seconds ELSE 0 END), 0)::int AS total_seconds,
-			COALESCE(SUM(CASE WHEN m.winner_id IS NOT NULL AND m.turn_count > 0 THEN m.turn_count ELSE 0 END), 0)::int AS total_turns
-		FROM matches m
-		JOIN match_players mp ON mp.match_id = m.id
-		WHERE mp.user_id = $1
+			COUNT(*)::int AS matches_played,
+			COALESCE(SUM(CASE WHEN p.place = 1 THEN 1 ELSE 0 END), 0)::int AS wins,
+			COALESCE(SUM(CASE WHEN m.turn_count > 0 THEN m.total_duration_seconds ELSE 0 END), 0)::int AS total_seconds,
+			COALESCE(SUM(CASE WHEN m.turn_count > 0 THEN m.turn_count ELSE 0 END), 0)::int AS total_turns
+		FROM user_matches um
+		JOIN matches m ON m.id = um.match_id
+		JOIN participants p ON p.match_id = um.match_id AND p.user_id = $1
 		GROUP BY m.format
 	`
 
@@ -432,11 +636,10 @@ func (s *MatchesStore) statsSummaryByFormat(ctx context.Context, userID string) 
 			formatText   pgtype.Text
 			played       int
 			wins         int
-			losses       int
 			totalSeconds int
 			totalTurns   int
 		)
-		if err := rows.Scan(&formatText, &played, &wins, &losses, &totalSeconds, &totalTurns); err != nil {
+		if err := rows.Scan(&formatText, &played, &wins, &totalSeconds, &totalTurns); err != nil {
 			return nil, fmt.Errorf("scan stats by format: %w", err)
 		}
 		avgTurn := 0
@@ -444,6 +647,7 @@ func (s *MatchesStore) statsSummaryByFormat(ctx context.Context, userID string) 
 			avgTurn = totalSeconds / totalTurns
 		}
 		format := string(normalizeFormat(formatText))
+		losses := played - wins
 		out[format] = domain.StatsSummary{
 			MatchesPlayed:  played,
 			Wins:           wins,
@@ -462,11 +666,30 @@ func (s *MatchesStore) statsSummaryByFormat(ctx context.Context, userID string) 
 
 func (s *MatchesStore) mostOftenBeat(ctx context.Context, userID string) (*domain.OpponentStat, error) {
 	const q = `
+		WITH participants AS (
+			SELECT match_id, user_id, guest_name, place
+			FROM match_participants
+			UNION ALL
+			SELECT mp.match_id, mp.user_id, NULL::text AS guest_name,
+			       CASE
+			         WHEN m.winner_id = mp.user_id THEN 1
+			         WHEN m.winner_id IS NOT NULL THEN 2
+			         ELSE NULL
+			       END AS place
+			FROM match_players mp
+			JOIN matches m ON m.id = mp.match_id
+			WHERE NOT EXISTS (SELECT 1 FROM match_participants p WHERE p.match_id = mp.match_id)
+		),
+		winners AS (
+			SELECT match_id
+			FROM participants
+			WHERE user_id = $1 AND place = 1
+		)
 		SELECT u.id, u.username, COUNT(*)::int AS wins
-		FROM matches m
-		JOIN match_players mp ON mp.match_id = m.id
-		JOIN users u ON u.id = mp.user_id
-		WHERE m.winner_id = $1 AND mp.user_id <> $1
+		FROM participants p
+		JOIN winners w ON w.match_id = p.match_id
+		JOIN users u ON u.id = p.user_id
+		WHERE p.user_id <> $1
 		GROUP BY u.id, u.username
 		ORDER BY wins DESC, u.username ASC
 		LIMIT 1
@@ -489,11 +712,30 @@ func (s *MatchesStore) mostOftenBeat(ctx context.Context, userID string) (*domai
 
 func (s *MatchesStore) mostOftenBeatsYou(ctx context.Context, userID string) (*domain.OpponentStat, error) {
 	const q = `
+		WITH participants AS (
+			SELECT match_id, user_id, guest_name, place
+			FROM match_participants
+			UNION ALL
+			SELECT mp.match_id, mp.user_id, NULL::text AS guest_name,
+			       CASE
+			         WHEN m.winner_id = mp.user_id THEN 1
+			         WHEN m.winner_id IS NOT NULL THEN 2
+			         ELSE NULL
+			       END AS place
+			FROM match_players mp
+			JOIN matches m ON m.id = mp.match_id
+			WHERE NOT EXISTS (SELECT 1 FROM match_participants p WHERE p.match_id = mp.match_id)
+		),
+		winners AS (
+			SELECT match_id, user_id
+			FROM participants
+			WHERE place = 1 AND user_id IS NOT NULL
+		)
 		SELECT u.id, u.username, COUNT(*)::int AS wins
-		FROM matches m
-		JOIN match_players mp ON mp.match_id = m.id AND mp.user_id = $1
-		JOIN users u ON u.id = m.winner_id
-		WHERE m.winner_id IS NOT NULL AND m.winner_id <> $1
+		FROM winners w
+		JOIN users u ON u.id = w.user_id
+		WHERE w.user_id <> $1
+		  AND EXISTS (SELECT 1 FROM participants p WHERE p.match_id = w.match_id AND p.user_id = $1)
 		GROUP BY u.id, u.username
 		ORDER BY wins DESC, u.username ASC
 		LIMIT 1
@@ -514,6 +756,73 @@ func (s *MatchesStore) mostOftenBeatsYou(ctx context.Context, userID string) (*d
 	}, nil
 }
 
+func (s *MatchesStore) guestHeadToHead(ctx context.Context, userID string) ([]domain.GuestHeadToHeadStat, error) {
+	const q = `
+		WITH participants AS (
+			SELECT match_id, user_id, guest_name, place
+			FROM match_participants
+			UNION ALL
+			SELECT mp.match_id, mp.user_id, NULL::text AS guest_name,
+			       CASE
+			         WHEN m.winner_id = mp.user_id THEN 1
+			         WHEN m.winner_id IS NOT NULL THEN 2
+			         ELSE NULL
+			       END AS place
+			FROM match_players mp
+			JOIN matches m ON m.id = mp.match_id
+			WHERE NOT EXISTS (SELECT 1 FROM match_participants p WHERE p.match_id = mp.match_id)
+		),
+		completed AS (
+			SELECT DISTINCT match_id FROM participants WHERE place = 1
+		),
+		user_matches AS (
+			SELECT DISTINCT p.match_id
+			FROM participants p
+			JOIN completed c ON c.match_id = p.match_id
+			WHERE p.user_id = $1
+		),
+		winners AS (
+			SELECT match_id, user_id, guest_name
+			FROM participants
+			WHERE place = 1
+		)
+		SELECT
+			g.guest_name,
+			COALESCE(SUM(CASE WHEN w.user_id = $1 THEN 1 ELSE 0 END), 0)::int AS wins,
+			COALESCE(SUM(CASE WHEN w.guest_name = g.guest_name THEN 1 ELSE 0 END), 0)::int AS losses
+		FROM participants g
+		JOIN user_matches um ON um.match_id = g.match_id
+		JOIN winners w ON w.match_id = g.match_id
+		WHERE g.guest_name IS NOT NULL
+		GROUP BY g.guest_name
+		ORDER BY g.guest_name ASC
+	`
+
+	rows, err := s.pool.Query(ctx, q, userID)
+	if err != nil {
+		return nil, fmt.Errorf("guest head-to-head: %w", err)
+	}
+	defer rows.Close()
+
+	var out []domain.GuestHeadToHeadStat
+	for rows.Next() {
+		var name string
+		var wins, losses int
+		if err := rows.Scan(&name, &wins, &losses); err != nil {
+			return nil, fmt.Errorf("scan guest head-to-head: %w", err)
+		}
+		out = append(out, domain.GuestHeadToHeadStat{
+			GuestName: name,
+			Wins:      wins,
+			Losses:    losses,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("guest head-to-head: %w", err)
+	}
+	return out, nil
+}
+
 func (s *MatchesStore) HeadToHead(ctx context.Context, userID, opponentID string) (domain.HeadToHeadStats, error) {
 	const qOpponent = `SELECT id, username FROM users WHERE id = $1`
 	var oppIDUUID pgtype.UUID
@@ -526,19 +835,35 @@ func (s *MatchesStore) HeadToHead(ctx context.Context, userID, opponentID string
 	}
 
 	const q = `
+		WITH participants AS (
+			SELECT match_id, user_id, guest_name, place
+			FROM match_participants
+			UNION ALL
+			SELECT mp.match_id, mp.user_id, NULL::text AS guest_name,
+			       CASE
+			         WHEN m.winner_id = mp.user_id THEN 1
+			         WHEN m.winner_id IS NOT NULL THEN 2
+			         ELSE NULL
+			       END AS place
+			FROM match_players mp
+			JOIN matches m ON m.id = mp.match_id
+			WHERE NOT EXISTS (SELECT 1 FROM match_participants p WHERE p.match_id = mp.match_id)
+		),
+		winners AS (
+			SELECT match_id, user_id
+			FROM participants
+			WHERE place = 1 AND user_id IS NOT NULL
+		)
 		SELECT
-			COUNT(*)::int AS total,
-			COALESCE(SUM(CASE WHEN m.winner_id = $1 THEN 1 ELSE 0 END), 0)::int AS wins,
-			COALESCE(SUM(CASE WHEN m.winner_id = $2 THEN 1 ELSE 0 END), 0)::int AS losses,
-			COALESCE(SUM(CASE WHEN m.winner_id IS NOT NULL AND m.winner_id <> $1 AND m.winner_id <> $2 THEN 1 ELSE 0 END), 0)::int AS co_losses
-		FROM matches m
+			COALESCE(SUM(CASE WHEN w.user_id = $1 THEN 1 ELSE 0 END), 0)::int AS wins,
+			COALESCE(SUM(CASE WHEN w.user_id = $2 THEN 1 ELSE 0 END), 0)::int AS losses
+		FROM winners w
 		WHERE
-			m.winner_id IS NOT NULL
-			EXISTS (SELECT 1 FROM match_players mp WHERE mp.match_id = m.id AND mp.user_id = $1)
-			AND EXISTS (SELECT 1 FROM match_players mp WHERE mp.match_id = m.id AND mp.user_id = $2)
+			EXISTS (SELECT 1 FROM participants p WHERE p.match_id = w.match_id AND p.user_id = $1)
+			AND EXISTS (SELECT 1 FROM participants p WHERE p.match_id = w.match_id AND p.user_id = $2)
 	`
-	var total, wins, losses, coLosses int
-	if err := s.pool.QueryRow(ctx, q, userID, opponentID).Scan(&total, &wins, &losses, &coLosses); err != nil {
+	var wins, losses int
+	if err := s.pool.QueryRow(ctx, q, userID, opponentID).Scan(&wins, &losses); err != nil {
 		return domain.HeadToHeadStats{}, fmt.Errorf("head-to-head: %w", err)
 	}
 
@@ -549,27 +874,44 @@ func (s *MatchesStore) HeadToHead(ctx context.Context, userID, opponentID string
 
 	return domain.HeadToHeadStats{
 		Opponent: domain.UserSummary{ID: uuidOrEmpty(oppIDUUID), Username: oppUsername},
-		Total:    total,
+		Total:    wins + losses,
 		Wins:     wins,
 		Losses:   losses,
-		CoLosses: coLosses,
+		CoLosses: 0,
 		ByFormat: byFormat,
 	}, nil
 }
 
 func (s *MatchesStore) headToHeadByFormat(ctx context.Context, userID, opponentID string) (map[string]domain.HeadToHeadStats, error) {
 	const q = `
+		WITH participants AS (
+			SELECT match_id, user_id, guest_name, place
+			FROM match_participants
+			UNION ALL
+			SELECT mp.match_id, mp.user_id, NULL::text AS guest_name,
+			       CASE
+			         WHEN m.winner_id = mp.user_id THEN 1
+			         WHEN m.winner_id IS NOT NULL THEN 2
+			         ELSE NULL
+			       END AS place
+			FROM match_players mp
+			JOIN matches m ON m.id = mp.match_id
+			WHERE NOT EXISTS (SELECT 1 FROM match_participants p WHERE p.match_id = mp.match_id)
+		),
+		winners AS (
+			SELECT match_id, user_id
+			FROM participants
+			WHERE place = 1 AND user_id IS NOT NULL
+		)
 		SELECT
 			m.format,
-			COUNT(*)::int AS total,
-			COALESCE(SUM(CASE WHEN m.winner_id = $1 THEN 1 ELSE 0 END), 0)::int AS wins,
-			COALESCE(SUM(CASE WHEN m.winner_id = $2 THEN 1 ELSE 0 END), 0)::int AS losses,
-			COALESCE(SUM(CASE WHEN m.winner_id IS NOT NULL AND m.winner_id <> $1 AND m.winner_id <> $2 THEN 1 ELSE 0 END), 0)::int AS co_losses
-		FROM matches m
+			COALESCE(SUM(CASE WHEN w.user_id = $1 THEN 1 ELSE 0 END), 0)::int AS wins,
+			COALESCE(SUM(CASE WHEN w.user_id = $2 THEN 1 ELSE 0 END), 0)::int AS losses
+		FROM winners w
+		JOIN matches m ON m.id = w.match_id
 		WHERE
-			m.winner_id IS NOT NULL
-			AND EXISTS (SELECT 1 FROM match_players mp WHERE mp.match_id = m.id AND mp.user_id = $1)
-			AND EXISTS (SELECT 1 FROM match_players mp WHERE mp.match_id = m.id AND mp.user_id = $2)
+			EXISTS (SELECT 1 FROM participants p WHERE p.match_id = w.match_id AND p.user_id = $1)
+			AND EXISTS (SELECT 1 FROM participants p WHERE p.match_id = w.match_id AND p.user_id = $2)
 		GROUP BY m.format
 	`
 	rows, err := s.pool.Query(ctx, q, userID, opponentID)
@@ -582,20 +924,18 @@ func (s *MatchesStore) headToHeadByFormat(ctx context.Context, userID, opponentI
 	for rows.Next() {
 		var (
 			formatText pgtype.Text
-			total      int
 			wins       int
 			losses     int
-			coLosses   int
 		)
-		if err := rows.Scan(&formatText, &total, &wins, &losses, &coLosses); err != nil {
+		if err := rows.Scan(&formatText, &wins, &losses); err != nil {
 			return nil, fmt.Errorf("scan head-to-head by format: %w", err)
 		}
 		format := string(normalizeFormat(formatText))
 		out[format] = domain.HeadToHeadStats{
-			Total:    total,
+			Total:    wins + losses,
 			Wins:     wins,
 			Losses:   losses,
-			CoLosses: coLosses,
+			CoLosses: 0,
 		}
 	}
 	if err := rows.Err(); err != nil {

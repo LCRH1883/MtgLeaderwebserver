@@ -90,11 +90,11 @@ type statsViewData struct {
 }
 
 type formatStatRow struct {
-	Format          string
-	MatchesPlayed   int
-	Wins            int
-	Losses          int
-	AvgTurnSeconds  int
+	Format         string
+	MatchesPlayed  int
+	Wins           int
+	Losses         int
+	AvgTurnSeconds int
 }
 
 type opponentStatRow struct {
@@ -121,13 +121,13 @@ type matchListItem struct {
 }
 
 type matchDetailViewData struct {
-	Title      string
-	User       domain.User
-	Match      domain.Match
-	PlayedAt   string
-	Duration   string
-	AvgTurn    string
-	Error      string
+	Title    string
+	User     domain.User
+	Match    domain.Match
+	PlayedAt string
+	Duration string
+	AvgTurn  string
+	Error    string
 }
 
 type searchResult struct {
@@ -196,16 +196,16 @@ func parseTemplates() (*templates, error) {
 	}
 
 	return &templates{
-		login:   login,
+		login:    login,
 		register: register,
-		home:    home,
-		friends: friends,
-		stats:   statsT,
-		matches: matchesT,
-		match:   matchT,
-		profile: profile,
-		reset:   resetT,
-		errorT:  errorT,
+		home:     home,
+		friends:  friends,
+		stats:    statsT,
+		matches:  matchesT,
+		match:    matchT,
+		profile:  profile,
+		reset:    resetT,
+		errorT:   errorT,
 	}, nil
 }
 
