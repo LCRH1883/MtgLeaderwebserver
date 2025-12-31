@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"MtgLeaderwebserver/internal/domain"
@@ -30,27 +31,27 @@ func normalizeFormat(format pgtype.Text) domain.GameFormat {
 	return domain.GameFormat(f)
 }
 
-func (s *MatchesStore) CreateMatch(ctx context.Context, createdBy string, playedAt *time.Time, winnerID string, playerIDs []string, format domain.GameFormat, totalDurationSeconds, turnCount int, clientRef string, results []domain.MatchResultInput) (string, error) {
+func (s *MatchesStore) CreateMatch(ctx context.Context, createdBy string, playedAt *time.Time, winnerID string, playerIDs []string, format domain.GameFormat, totalDurationSeconds, turnCount int, clientRef string, updatedAt time.Time, results []domain.MatchResultInput) (string, bool, error) {
 	if clientRef != "" {
 		var existingID pgtype.UUID
 		err := s.pool.QueryRow(ctx, `SELECT id FROM matches WHERE created_by = $1 AND client_ref = $2`, createdBy, clientRef).Scan(&existingID)
 		if err == nil {
-			return uuidOrEmpty(existingID), nil
+			return uuidOrEmpty(existingID), false, nil
 		}
 		if !errors.Is(err, pgx.ErrNoRows) {
-			return "", fmt.Errorf("lookup client_ref: %w", err)
+			return "", false, fmt.Errorf("lookup client_ref: %w", err)
 		}
 	}
 
 	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
-		return "", fmt.Errorf("begin tx: %w", err)
+		return "", false, fmt.Errorf("begin tx: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	const insertMatch = `
-		INSERT INTO matches (created_by, played_at, winner_id, format, total_duration_seconds, turn_count, client_ref)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO matches (created_by, played_at, winner_id, format, total_duration_seconds, turn_count, client_ref, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING id
 	`
 
@@ -63,16 +64,16 @@ func (s *MatchesStore) CreateMatch(ctx context.Context, createdBy string, played
 	if winnerID != "" {
 		winnerIDAny = winnerID
 	}
-	if err := tx.QueryRow(ctx, insertMatch, createdBy, playedAtAny, winnerIDAny, format, totalDurationSeconds, turnCount, nullIfEmpty(clientRef)).Scan(&matchIDUUID); err != nil {
+	if err := tx.QueryRow(ctx, insertMatch, createdBy, playedAtAny, winnerIDAny, format, totalDurationSeconds, turnCount, nullIfEmpty(clientRef), updatedAt).Scan(&matchIDUUID); err != nil {
 		var pgerr *pgconn.PgError
 		if errors.As(err, &pgerr) && pgerr.ConstraintName == "matches_client_ref_uq" {
 			var existingID pgtype.UUID
-			if lookupErr := s.pool.QueryRow(ctx, `SELECT id FROM matches WHERE client_ref = $1`, clientRef).Scan(&existingID); lookupErr == nil {
-				return uuidOrEmpty(existingID), nil
+			if lookupErr := s.pool.QueryRow(ctx, `SELECT id FROM matches WHERE created_by = $1 AND client_ref = $2`, createdBy, clientRef).Scan(&existingID); lookupErr == nil {
+				return uuidOrEmpty(existingID), false, nil
 			}
-			return "", domain.NewValidationError(map[string]string{"client_ref": "already used"})
+			return "", false, domain.NewValidationError(map[string]string{"client_ref": "already used"})
 		}
-		return "", fmt.Errorf("insert match: %w", err)
+		return "", false, fmt.Errorf("insert match: %w", err)
 	}
 	matchID := uuidOrEmpty(matchIDUUID)
 
@@ -84,9 +85,9 @@ func (s *MatchesStore) CreateMatch(ctx context.Context, createdBy string, played
 		if _, err := tx.Exec(ctx, insertPlayer, matchID, pid); err != nil {
 			var pgerr *pgconn.PgError
 			if errors.As(err, &pgerr) && pgerr.Code == "23503" {
-				return "", domain.ErrValidation
+				return "", false, domain.ErrValidation
 			}
-			return "", fmt.Errorf("insert match player: %w", err)
+			return "", false, fmt.Errorf("insert match player: %w", err)
 		}
 	}
 
@@ -107,17 +108,17 @@ func (s *MatchesStore) CreateMatch(ctx context.Context, createdBy string, played
 			if _, err := tx.Exec(ctx, insertResult, matchID, res.ID, res.Rank, elimTurn, elimBatch); err != nil {
 				var pgerr *pgconn.PgError
 				if errors.As(err, &pgerr) && pgerr.Code == "23503" {
-					return "", domain.ErrValidation
+					return "", false, domain.ErrValidation
 				}
-				return "", fmt.Errorf("insert match result: %w", err)
+				return "", false, fmt.Errorf("insert match result: %w", err)
 			}
 		}
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return "", fmt.Errorf("commit tx: %w", err)
+		return "", false, fmt.Errorf("commit tx: %w", err)
 	}
-	return matchID, nil
+	return matchID, true, nil
 }
 
 func (s *MatchesStore) ListMatchesForUser(ctx context.Context, userID string, limit int) ([]domain.Match, error) {
@@ -127,7 +128,7 @@ func (s *MatchesStore) ListMatchesForUser(ctx context.Context, userID string, li
 
 	// List matches where user participated.
 	const q = `
-		SELECT m.id, m.created_by, m.created_at, m.played_at, m.winner_id, m.format, m.total_duration_seconds, m.turn_count
+		SELECT m.id, m.created_by, m.created_at, m.updated_at, m.played_at, m.winner_id, m.format, m.total_duration_seconds, m.turn_count, m.client_ref
 		FROM matches m
 		JOIN match_players mp ON mp.match_id = m.id
 		WHERE mp.user_id = $1
@@ -145,17 +146,19 @@ func (s *MatchesStore) ListMatchesForUser(ctx context.Context, userID string, li
 		idUUID       pgtype.UUID
 		createdBy    pgtype.UUID
 		createdAt    time.Time
+		updatedAt    time.Time
 		playedAt     pgtype.Timestamptz
 		winnerID     pgtype.UUID
 		format       pgtype.Text
 		durationSecs int
 		turnCount    int
+		clientRef    pgtype.Text
 	}
 
 	var tmp []matchRow
 	for rows.Next() {
 		var r matchRow
-		if err := rows.Scan(&r.idUUID, &r.createdBy, &r.createdAt, &r.playedAt, &r.winnerID, &r.format, &r.durationSecs, &r.turnCount); err != nil {
+		if err := rows.Scan(&r.idUUID, &r.createdBy, &r.createdAt, &r.updatedAt, &r.playedAt, &r.winnerID, &r.format, &r.durationSecs, &r.turnCount, &r.clientRef); err != nil {
 			return nil, fmt.Errorf("scan match: %w", err)
 		}
 		tmp = append(tmp, r)
@@ -177,6 +180,8 @@ func (s *MatchesStore) ListMatchesForUser(ctx context.Context, userID string, li
 			ID:                   matchID,
 			CreatedBy:            uuidOrEmpty(r.createdBy),
 			CreatedAt:            r.createdAt,
+			UpdatedAt:            r.updatedAt,
+			ClientMatchID:        textOrEmpty(r.clientRef),
 			PlayedAt:             timestamptzPtr(r.playedAt),
 			WinnerID:             winnerID,
 			Format:               normalizeFormat(r.format),
@@ -191,7 +196,7 @@ func (s *MatchesStore) ListMatchesForUser(ctx context.Context, userID string, li
 
 func (s *MatchesStore) GetMatchForUser(ctx context.Context, userID, matchID string) (domain.Match, error) {
 	const q = `
-		SELECT m.id, m.created_by, m.created_at, m.played_at, m.winner_id, m.format, m.total_duration_seconds, m.turn_count
+		SELECT m.id, m.created_by, m.created_at, m.updated_at, m.played_at, m.winner_id, m.format, m.total_duration_seconds, m.turn_count, m.client_ref
 		FROM matches m
 		JOIN match_players mp ON mp.match_id = m.id
 		WHERE m.id = $1 AND mp.user_id = $2
@@ -201,21 +206,25 @@ func (s *MatchesStore) GetMatchForUser(ctx context.Context, userID, matchID stri
 		idUUID       pgtype.UUID
 		createdBy    pgtype.UUID
 		createdAt    time.Time
+		updatedAt    time.Time
 		playedAt     pgtype.Timestamptz
 		winnerID     pgtype.UUID
 		format       pgtype.Text
 		durationSecs int
 		turnCount    int
+		clientRef    pgtype.Text
 	)
 	if err := s.pool.QueryRow(ctx, q, matchID, userID).Scan(
 		&idUUID,
 		&createdBy,
 		&createdAt,
+		&updatedAt,
 		&playedAt,
 		&winnerID,
 		&format,
 		&durationSecs,
 		&turnCount,
+		&clientRef,
 	); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.Match{}, domain.ErrNotFound
@@ -234,6 +243,71 @@ func (s *MatchesStore) GetMatchForUser(ctx context.Context, userID, matchID stri
 		ID:                   matchID,
 		CreatedBy:            uuidOrEmpty(createdBy),
 		CreatedAt:            createdAt,
+		UpdatedAt:            updatedAt,
+		ClientMatchID:        textOrEmpty(clientRef),
+		PlayedAt:             timestamptzPtr(playedAt),
+		WinnerID:             winner,
+		Format:               normalizeFormat(format),
+		TotalDurationSeconds: durationSecs,
+		TurnCount:            turnCount,
+		Players:              players,
+	}, nil
+}
+
+func (s *MatchesStore) GetMatchByClientRef(ctx context.Context, createdBy, clientRef string) (domain.Match, error) {
+	if strings.TrimSpace(clientRef) == "" {
+		return domain.Match{}, domain.ErrNotFound
+	}
+
+	const q = `
+		SELECT m.id, m.created_by, m.created_at, m.updated_at, m.played_at, m.winner_id, m.format, m.total_duration_seconds, m.turn_count, m.client_ref
+		FROM matches m
+		WHERE m.created_by = $1 AND m.client_ref = $2
+		LIMIT 1
+	`
+	var (
+		idUUID        pgtype.UUID
+		createdByUUID pgtype.UUID
+		createdAt     time.Time
+		updatedAt     time.Time
+		playedAt      pgtype.Timestamptz
+		winnerID      pgtype.UUID
+		format        pgtype.Text
+		durationSecs  int
+		turnCount     int
+		clientRefText pgtype.Text
+	)
+	if err := s.pool.QueryRow(ctx, q, createdBy, clientRef).Scan(
+		&idUUID,
+		&createdByUUID,
+		&createdAt,
+		&updatedAt,
+		&playedAt,
+		&winnerID,
+		&format,
+		&durationSecs,
+		&turnCount,
+		&clientRefText,
+	); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.Match{}, domain.ErrNotFound
+		}
+		return domain.Match{}, fmt.Errorf("get match by client_ref: %w", err)
+	}
+
+	matchID := uuidOrEmpty(idUUID)
+	winner := uuidOrEmpty(winnerID)
+	players, err := s.listPlayers(ctx, matchID, winner)
+	if err != nil {
+		return domain.Match{}, err
+	}
+
+	return domain.Match{
+		ID:                   matchID,
+		CreatedBy:            uuidOrEmpty(createdByUUID),
+		CreatedAt:            createdAt,
+		UpdatedAt:            updatedAt,
+		ClientMatchID:        textOrEmpty(clientRefText),
 		PlayedAt:             timestamptzPtr(playedAt),
 		WinnerID:             winner,
 		Format:               normalizeFormat(format),

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
@@ -9,7 +10,8 @@ import (
 )
 
 type MatchesStore interface {
-	CreateMatch(ctx context.Context, createdBy string, playedAt *time.Time, winnerID string, playerIDs []string, format domain.GameFormat, totalDurationSeconds, turnCount int, clientRef string, results []domain.MatchResultInput) (string, error)
+	CreateMatch(ctx context.Context, createdBy string, playedAt *time.Time, winnerID string, playerIDs []string, format domain.GameFormat, totalDurationSeconds, turnCount int, clientRef string, updatedAt time.Time, results []domain.MatchResultInput) (string, bool, error)
+	GetMatchByClientRef(ctx context.Context, createdBy, clientRef string) (domain.Match, error)
 	ListMatchesForUser(ctx context.Context, userID string, limit int) ([]domain.Match, error)
 	GetMatchForUser(ctx context.Context, userID, matchID string) (domain.Match, error)
 	StatsSummary(ctx context.Context, userID string) (domain.StatsSummary, error)
@@ -33,24 +35,43 @@ type CreateMatchParams struct {
 	Format               domain.GameFormat
 	TotalDurationSeconds int
 	TurnCount            int
-	ClientRef            string
+	ClientMatchID        string
+	UpdatedAt            time.Time
 	Results              []domain.MatchResultInput
 }
 
-func (s *MatchService) CreateMatch(ctx context.Context, creatorID string, p CreateMatchParams) (string, error) {
+type MatchCreateResult int
+
+const (
+	MatchCreateApplied MatchCreateResult = iota
+	MatchCreateConflict
+)
+
+func (s *MatchService) CreateMatch(ctx context.Context, creatorID string, p CreateMatchParams) (domain.Match, MatchCreateResult, error) {
 	if s.Now == nil {
 		s.Now = time.Now
 	}
 
+	clientRef := strings.TrimSpace(p.ClientMatchID)
+	if clientRef != "" {
+		existing, err := s.Matches.GetMatchByClientRef(ctx, creatorID, clientRef)
+		if err == nil {
+			return existing, MatchCreateConflict, nil
+		}
+		if !errors.Is(err, domain.ErrNotFound) {
+			return domain.Match{}, MatchCreateConflict, err
+		}
+	}
+
 	format := normalizeFormat(p.Format)
 	if !validFormat(format) {
-		return "", domain.NewValidationError(map[string]string{"format": "must be commander, brawl, standard, or modern"})
+		return domain.Match{}, MatchCreateConflict, domain.NewValidationError(map[string]string{"format": "must be commander, brawl, standard, or modern"})
 	}
 	if p.TotalDurationSeconds < 0 {
-		return "", domain.NewValidationError(map[string]string{"total_duration_seconds": "must be >= 0"})
+		return domain.Match{}, MatchCreateConflict, domain.NewValidationError(map[string]string{"total_duration_seconds": "must be >= 0"})
 	}
 	if p.TurnCount < 0 {
-		return "", domain.NewValidationError(map[string]string{"turn_count": "must be >= 0"})
+		return domain.Match{}, MatchCreateConflict, domain.NewValidationError(map[string]string{"turn_count": "must be >= 0"})
 	}
 
 	var (
@@ -66,19 +87,19 @@ func (s *MatchService) CreateMatch(ctx context.Context, creatorID string, p Crea
 		for _, res := range p.Results {
 			id := strings.TrimSpace(res.ID)
 			if id == "" {
-				return "", domain.NewValidationError(map[string]string{"results": "each result must include a player id"})
+				return domain.Match{}, MatchCreateConflict, domain.NewValidationError(map[string]string{"results": "each result must include a player id"})
 			}
 			if seen[id] {
-				return "", domain.NewValidationError(map[string]string{"results": "player ids must be unique"})
+				return domain.Match{}, MatchCreateConflict, domain.NewValidationError(map[string]string{"results": "player ids must be unique"})
 			}
 			if res.Rank < 1 {
-				return "", domain.NewValidationError(map[string]string{"results": "rank must be >= 1"})
+				return domain.Match{}, MatchCreateConflict, domain.NewValidationError(map[string]string{"results": "rank must be >= 1"})
 			}
 			if res.EliminationTurn != nil && *res.EliminationTurn < 0 {
-				return "", domain.NewValidationError(map[string]string{"results": "elimination_turn must be >= 0"})
+				return domain.Match{}, MatchCreateConflict, domain.NewValidationError(map[string]string{"results": "elimination_turn must be >= 0"})
 			}
 			if res.EliminationBatch != nil && *res.EliminationBatch < 0 {
-				return "", domain.NewValidationError(map[string]string{"results": "elimination_batch must be >= 0"})
+				return domain.Match{}, MatchCreateConflict, domain.NewValidationError(map[string]string{"results": "elimination_batch must be >= 0"})
 			}
 			seen[id] = true
 			players = append(players, id)
@@ -90,10 +111,10 @@ func (s *MatchService) CreateMatch(ctx context.Context, creatorID string, p Crea
 			results = append(results, res)
 		}
 		if !seen[creatorID] {
-			return "", domain.NewValidationError(map[string]string{"results": "creator must be included in results"})
+			return domain.Match{}, MatchCreateConflict, domain.NewValidationError(map[string]string{"results": "creator must be included in results"})
 		}
 		if winnerCount != 1 {
-			return "", domain.NewValidationError(map[string]string{"results": "exactly one player must have rank 1"})
+			return domain.Match{}, MatchCreateConflict, domain.NewValidationError(map[string]string{"results": "exactly one player must have rank 1"})
 		}
 	} else {
 		seen := map[string]bool{creatorID: false}
@@ -112,12 +133,12 @@ func (s *MatchService) CreateMatch(ctx context.Context, creatorID string, p Crea
 		}
 		winnerID = strings.TrimSpace(p.WinnerID)
 		if winnerID != "" && !seen[winnerID] {
-			return "", domain.NewValidationError(map[string]string{"winner_id": "winner must be one of the players"})
+			return domain.Match{}, MatchCreateConflict, domain.NewValidationError(map[string]string{"winner_id": "winner must be one of the players"})
 		}
 	}
 
 	if len(players) < 2 {
-		return "", domain.NewValidationError(map[string]string{"players": "must have at least 2 players"})
+		return domain.Match{}, MatchCreateConflict, domain.NewValidationError(map[string]string{"players": "must have at least 2 players"})
 	}
 
 	// Enforce MVP invariant: all players are creator or accepted friends.
@@ -128,15 +149,27 @@ func (s *MatchService) CreateMatch(ctx context.Context, creatorID string, p Crea
 			}
 			ok, err := s.Friends.AreFriends(ctx, creatorID, pid)
 			if err != nil {
-				return "", err
+				return domain.Match{}, MatchCreateConflict, err
 			}
 			if !ok {
-				return "", domain.ErrForbidden
+				return domain.Match{}, MatchCreateConflict, domain.ErrForbidden
 			}
 		}
 	}
 
-	return s.Matches.CreateMatch(ctx, creatorID, p.PlayedAt, winnerID, players, format, p.TotalDurationSeconds, p.TurnCount, strings.TrimSpace(p.ClientRef), results)
+	matchID, created, err := s.Matches.CreateMatch(ctx, creatorID, p.PlayedAt, winnerID, players, format, p.TotalDurationSeconds, p.TurnCount, clientRef, p.UpdatedAt, results)
+	if err != nil {
+		return domain.Match{}, MatchCreateConflict, err
+	}
+
+	match, err := s.Matches.GetMatchForUser(ctx, creatorID, matchID)
+	if err != nil {
+		return domain.Match{}, MatchCreateConflict, err
+	}
+	if !created {
+		return match, MatchCreateConflict, nil
+	}
+	return match, MatchCreateApplied, nil
 }
 
 func (s *MatchService) ListMatches(ctx context.Context, userID string, limit int) ([]domain.Match, error) {

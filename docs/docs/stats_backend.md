@@ -156,11 +156,12 @@ Indexes:
 #### Preferred payload (v2)
 ```json
 {
+  "updated_at": "2025-12-29T20:00:00.000Z",
+  "client_match_id": "device-generated-uuid",
   "played_at": "2025-12-29T20:00:00Z",
   "format": "commander",
   "total_duration_seconds": 5400,
   "turn_count": 12,
-  "client_ref": "device-generated-uuid",
   "results": [
     {"id":"USER_1","rank":1},
     {"id":"USER_2","rank":2},
@@ -168,6 +169,11 @@ Indexes:
     {"id":"USER_4","rank":3, "elimination_turn": 10, "elimination_batch": 2}
   ]
 }
+
+Notes:
+- `updated_at` is required and must be RFC3339 UTC with milliseconds.
+- `client_match_id` is strongly recommended for idempotency.
+- `client_ref` is accepted as a legacy alias for `client_match_id` if needed.
 
 
 Validation rules:
@@ -182,17 +188,24 @@ The backend derives winner_id from rank=1 and sets matches.winner_id.
 
 Idempotency:
 
-If (created_by, client_ref) already exists, return the existing match id.
+If (created_by, client_match_id) already exists, return 409 with the existing match record.
+Matches are immutable; newer `updated_at` values still return the existing record.
 
 Response:
 
-{ "id": "MATCH_UUID" }
+```
+{
+  "match": { "id": "MATCH_UUID", "...": "..." },
+  "stats_summary": { "...": "..." }
+}
+```
 
 Legacy payload (backward compatibility)
 
 Older clients may send:
 
 {
+  "updated_at": "2025-12-29T20:00:00.000Z",
   "played_at": "2025-12-29T20:00:00Z",
   "winner_id": "USER_1",
   "player_ids": ["USER_2","USER_3"]
@@ -367,4 +380,3 @@ match “status” field (completed/voided) if needed
 
 
 ---
-

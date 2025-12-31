@@ -30,6 +30,8 @@ type Match struct {
 	ID                   string        `json:"id"`
 	CreatedBy            string        `json:"created_by"`
 	CreatedAt            time.Time     `json:"created_at"`
+	UpdatedAt            time.Time     `json:"updated_at"`
+	ClientMatchID        string        `json:"client_match_id,omitempty"`
 	PlayedAt             *time.Time    `json:"played_at,omitempty"`
 	WinnerID             string        `json:"winner_id,omitempty"`
 	Format               GameFormat    `json:"format"`
@@ -39,13 +41,13 @@ type Match struct {
 }
 
 type StatsSummary struct {
-	MatchesPlayed  int                    `json:"matches_played"`
-	Wins           int                    `json:"wins"`
-	Losses         int                    `json:"losses"`
-	AvgTurnSeconds int                    `json:"avg_turn_seconds"`
-	ByFormat       map[string]StatsSummary `json:"by_format,omitempty"`
-	MostOftenBeat     *OpponentStat `json:"most_often_beat,omitempty"`
-	MostOftenBeatsYou *OpponentStat `json:"most_often_beats_you,omitempty"`
+	MatchesPlayed     int                     `json:"matches_played"`
+	Wins              int                     `json:"wins"`
+	Losses            int                     `json:"losses"`
+	AvgTurnSeconds    int                     `json:"avg_turn_seconds"`
+	ByFormat          map[string]StatsSummary `json:"by_format,omitempty"`
+	MostOftenBeat     *OpponentStat           `json:"most_often_beat,omitempty"`
+	MostOftenBeatsYou *OpponentStat           `json:"most_often_beats_you,omitempty"`
 }
 
 type OpponentStat struct {
@@ -54,11 +56,11 @@ type OpponentStat struct {
 }
 
 type HeadToHeadStats struct {
-	Opponent UserSummary              `json:"opponent"`
-	Total    int                      `json:"total"`
-	Wins     int                      `json:"wins"`
-	Losses   int                      `json:"losses"`
-	CoLosses int                      `json:"co_losses"`
+	Opponent UserSummary                `json:"opponent"`
+	Total    int                        `json:"total"`
+	Wins     int                        `json:"wins"`
+	Losses   int                        `json:"losses"`
+	CoLosses int                        `json:"co_losses"`
 	ByFormat map[string]HeadToHeadStats `json:"by_format,omitempty"`
 }
 
