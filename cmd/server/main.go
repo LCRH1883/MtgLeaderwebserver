@@ -17,6 +17,7 @@ import (
 	"MtgLeaderwebserver/internal/config"
 	"MtgLeaderwebserver/internal/domain"
 	"MtgLeaderwebserver/internal/httpapi"
+	"MtgLeaderwebserver/internal/notifications"
 	"MtgLeaderwebserver/internal/service"
 	"MtgLeaderwebserver/internal/store/postgres"
 	"MtgLeaderwebserver/internal/userui"
@@ -40,6 +41,7 @@ func main() {
 		resetSvc   *service.PasswordResetService
 		emailSvc   *service.EmailService
 		profileSvc *service.ProfileService
+		notifySvc  *service.NotificationService
 		dbPing     func(context.Context) error
 	)
 
@@ -59,6 +61,7 @@ func main() {
 		adminUsers := postgres.NewAdminUsersStore(pgPool)
 		adminSettings := postgres.NewAdminSettingsStore(pgPool)
 		passwordResets := postgres.NewPasswordResetStore(pgPool)
+		notificationTokens := postgres.NewNotificationTokensStore(pgPool)
 
 		if err := bootstrapAdminUser(context.Background(), logger, users, cfg.AdminBootstrapEmail, cfg.AdminBootstrapUsername, cfg.AdminBootstrapPassword); err != nil {
 			logger.Error("bootstrap admin failed", "err", err)
@@ -88,25 +91,42 @@ func main() {
 		}
 		emailSvc = &service.EmailService{Settings: adminSettings}
 		profileSvc = &service.ProfileService{Store: users}
+		notifySvc = &service.NotificationService{
+			Tokens: notificationTokens,
+			Users:  users,
+			Logger: logger,
+		}
+		if cfg.FCMProjectID != "" || cfg.FCMCredentialsPath != "" {
+			sender, err := notifications.NewFCMSender(context.Background(), cfg.FCMProjectID, cfg.FCMCredentialsPath)
+			if err != nil {
+				logger.Error("fcm sender init failed", "err", err)
+			} else {
+				notifySvc.Sender = sender
+			}
+		}
+		if friendsSvc != nil && notifySvc != nil {
+			friendsSvc.Notifier = notifySvc
+		}
 		dbPing = pgPool.Ping
 	}
 
 	apiRouter := httpapi.NewRouter(httpapi.RouterOpts{
-		Logger:       logger,
-		IsProd:       cfg.IsProd(),
-		DBPing:       dbPing,
-		Auth:         authSvc,
-		Friends:      friendsSvc,
-		Matches:      matchSvc,
-		Users:        usersSvc,
-		Profile:      profileSvc,
-		Reset:        resetSvc,
-		Email:        emailSvc,
-		CookieCodec:  auth.NewCookieCodec([]byte(cfg.CookieSecret)),
-		CookieSecure: cfg.CookieSecure(),
-		SessionTTL:   cfg.SessionTTL,
-		AvatarDir:    cfg.AvatarDir,
-		PublicURL:    cfg.PublicURL,
+		Logger:        logger,
+		IsProd:        cfg.IsProd(),
+		DBPing:        dbPing,
+		Auth:          authSvc,
+		Friends:       friendsSvc,
+		Matches:       matchSvc,
+		Users:         usersSvc,
+		Profile:       profileSvc,
+		Reset:         resetSvc,
+		Email:         emailSvc,
+		Notifications: notifySvc,
+		CookieCodec:   auth.NewCookieCodec([]byte(cfg.CookieSecret)),
+		CookieSecure:  cfg.CookieSecure(),
+		SessionTTL:    cfg.SessionTTL,
+		AvatarDir:     cfg.AvatarDir,
+		PublicURL:     cfg.PublicURL,
 	})
 
 	root := http.NewServeMux()

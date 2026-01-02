@@ -22,6 +22,7 @@ type FriendshipsStore interface {
 type FriendsService struct {
 	Users       UsersStore
 	Friendships FriendshipsStore
+	Notifier    FriendRequestNotifier
 	Now         func() time.Time
 }
 
@@ -102,6 +103,14 @@ func (s *FriendsService) CreateRequest(ctx context.Context, requesterID, address
 	id, createdAt, updatedAt, err := s.Friendships.CreateRequest(ctx, requesterID, target.ID)
 	if err != nil {
 		return domain.FriendRequest{}, err
+	}
+
+	if s.Notifier != nil {
+		_ = s.Notifier.NotifyFriendRequest(ctx, FriendRequestNotification{
+			RequestID:   id,
+			RequesterID: requesterID,
+			AddresseeID: target.ID,
+		})
 	}
 
 	return domain.FriendRequest{

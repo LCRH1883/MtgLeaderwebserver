@@ -27,6 +27,9 @@ type Config struct {
 	AdminBootstrapPassword string
 
 	AvatarDir string
+
+	FCMProjectID       string
+	FCMCredentialsPath string
 }
 
 func Load() (Config, error) {
@@ -35,13 +38,18 @@ func Load() (Config, error) {
 
 func LoadFromEnv(getenv func(string) string) (Config, error) {
 	cfg := Config{
-		Env:               getenv("APP_ENV"),
-		Addr:              getenv("APP_ADDR"),
-		DBDSN:             getenv("APP_DB_DSN"),
-		LogLevel:          getenv("APP_LOG_LEVEL"),
-		CookieSecret:      getenv("APP_COOKIE_SECRET"),
-		GoogleWebClientID: strings.TrimSpace(getenv("GOOGLE_WEB_CLIENT_ID")),
-		AppleServiceID:    strings.TrimSpace(getenv("APPLE_SERVICE_ID")),
+		Env:                getenv("APP_ENV"),
+		Addr:               getenv("APP_ADDR"),
+		DBDSN:              getenv("APP_DB_DSN"),
+		LogLevel:           getenv("APP_LOG_LEVEL"),
+		CookieSecret:       getenv("APP_COOKIE_SECRET"),
+		GoogleWebClientID:  strings.TrimSpace(getenv("GOOGLE_WEB_CLIENT_ID")),
+		AppleServiceID:     strings.TrimSpace(getenv("APPLE_SERVICE_ID")),
+		FCMProjectID:       strings.TrimSpace(getenv("APP_FCM_PROJECT_ID")),
+		FCMCredentialsPath: strings.TrimSpace(getenv("APP_FCM_CREDENTIALS")),
+	}
+	if cfg.FCMCredentialsPath == "" {
+		cfg.FCMCredentialsPath = strings.TrimSpace(getenv("GOOGLE_APPLICATION_CREDENTIALS"))
 	}
 	cfg.AvatarDir = strings.TrimSpace(getenv("APP_AVATAR_DIR"))
 	if cfg.AvatarDir == "" {

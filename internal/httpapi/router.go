@@ -18,18 +18,19 @@ type RouterOpts struct {
 
 	DBPing func(context.Context) error
 
-	Auth         *service.AuthService
-	Friends      *service.FriendsService
-	Matches      *service.MatchService
-	Users        *service.UsersService
-	Profile      *service.ProfileService
-	Reset        *service.PasswordResetService
-	Email        *service.EmailService
-	CookieCodec  auth.CookieCodec
-	CookieSecure bool
-	SessionTTL   time.Duration
-	AvatarDir    string
-	PublicURL    *url.URL
+	Auth          *service.AuthService
+	Friends       *service.FriendsService
+	Matches       *service.MatchService
+	Users         *service.UsersService
+	Profile       *service.ProfileService
+	Reset         *service.PasswordResetService
+	Email         *service.EmailService
+	Notifications *service.NotificationService
+	CookieCodec   auth.CookieCodec
+	CookieSecure  bool
+	SessionTTL    time.Duration
+	AvatarDir     string
+	PublicURL     *url.URL
 }
 
 func NewRouter(opts RouterOpts) http.Handler {
@@ -43,22 +44,23 @@ func NewRouter(opts RouterOpts) http.Handler {
 	}
 
 	api := &api{
-		logger:       logger,
-		isProd:       opts.IsProd,
-		dbPing:       opts.DBPing,
-		authSvc:      opts.Auth,
-		friendsSvc:   opts.Friends,
-		matchSvc:     opts.Matches,
-		usersSvc:     opts.Users,
-		profileSvc:   opts.Profile,
-		resetSvc:     opts.Reset,
-		emailSvc:     opts.Email,
-		avatarDir:    opts.AvatarDir,
-		publicURL:    opts.PublicURL,
-		cookieCodec:  opts.CookieCodec,
-		cookieSecure: opts.CookieSecure,
-		sessionTTL:   opts.SessionTTL,
-		loginLimiter: newLoginLimiter(),
+		logger:           logger,
+		isProd:           opts.IsProd,
+		dbPing:           opts.DBPing,
+		authSvc:          opts.Auth,
+		friendsSvc:       opts.Friends,
+		matchSvc:         opts.Matches,
+		usersSvc:         opts.Users,
+		profileSvc:       opts.Profile,
+		resetSvc:         opts.Reset,
+		emailSvc:         opts.Email,
+		notificationsSvc: opts.Notifications,
+		avatarDir:        opts.AvatarDir,
+		publicURL:        opts.PublicURL,
+		cookieCodec:      opts.CookieCodec,
+		cookieSecure:     opts.CookieSecure,
+		sessionTTL:       opts.SessionTTL,
+		loginLimiter:     newLoginLimiter(),
 	}
 
 	publicMux := http.NewServeMux()
@@ -129,6 +131,10 @@ func NewRouter(opts RouterOpts) http.Handler {
 				apiMux.HandleFunc("GET /v1/stats/friends", api.requireAuth(api.handleStatsFriends))
 			}
 		}
+		if api.notificationsSvc != nil {
+			apiMux.HandleFunc("POST /v1/notifications/token", api.requireAuth(api.handleNotificationsTokenUpsert))
+			apiMux.HandleFunc("DELETE /v1/notifications/token", api.requireAuth(api.handleNotificationsTokenDelete))
+		}
 	}
 
 	apiHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -169,18 +175,19 @@ type api struct {
 
 	dbPing func(context.Context) error
 
-	authSvc      *service.AuthService
-	friendsSvc   *service.FriendsService
-	matchSvc     *service.MatchService
-	usersSvc     *service.UsersService
-	profileSvc   *service.ProfileService
-	resetSvc     *service.PasswordResetService
-	emailSvc     *service.EmailService
-	avatarDir    string
-	publicURL    *url.URL
-	cookieCodec  auth.CookieCodec
-	cookieSecure bool
-	sessionTTL   time.Duration
+	authSvc          *service.AuthService
+	friendsSvc       *service.FriendsService
+	matchSvc         *service.MatchService
+	usersSvc         *service.UsersService
+	profileSvc       *service.ProfileService
+	resetSvc         *service.PasswordResetService
+	emailSvc         *service.EmailService
+	notificationsSvc *service.NotificationService
+	avatarDir        string
+	publicURL        *url.URL
+	cookieCodec      auth.CookieCodec
+	cookieSecure     bool
+	sessionTTL       time.Duration
 
 	loginLimiter *loginLimiter
 }
