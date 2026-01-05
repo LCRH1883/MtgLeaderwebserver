@@ -186,6 +186,24 @@ func (s *FriendshipsStore) Cancel(ctx context.Context, requestID, requesterID st
 	return true, nil
 }
 
+func (s *FriendshipsStore) RemoveFriend(ctx context.Context, userID, friendID string, when time.Time) (bool, error) {
+	const q = `
+		UPDATE friendships
+		SET status = 'declined', responded_at = $3, updated_at = $3
+		WHERE status = 'accepted'
+		  AND (
+		    (requester_id = $1 AND addressee_id = $2)
+		    OR
+		    (requester_id = $2 AND addressee_id = $1)
+		  )
+	`
+	ct, err := s.pool.Exec(ctx, q, userID, friendID, when)
+	if err != nil {
+		return false, fmt.Errorf("remove friend: %w", err)
+	}
+	return ct.RowsAffected() == 1, nil
+}
+
 func (s *FriendshipsStore) ListOverview(ctx context.Context, userID string) (domain.FriendsOverview, error) {
 	friends, err := s.listFriends(ctx, userID)
 	if err != nil {

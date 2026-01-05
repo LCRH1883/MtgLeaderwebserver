@@ -61,6 +61,9 @@ func (s *FCMSender) Send(ctx context.Context, token string, data map[string]stri
 		Message: fcmMessage{
 			Token: token,
 			Data:  data,
+			Android: fcmAndroidConfig{
+				Priority: "HIGH",
+			},
 		},
 	}
 	body, err := json.Marshal(msg)
@@ -102,8 +105,13 @@ type fcmRequest struct {
 }
 
 type fcmMessage struct {
-	Token string            `json:"token"`
-	Data  map[string]string `json:"data,omitempty"`
+	Token   string            `json:"token"`
+	Data    map[string]string `json:"data,omitempty"`
+	Android fcmAndroidConfig  `json:"android,omitempty"`
+}
+
+type fcmAndroidConfig struct {
+	Priority string `json:"priority,omitempty"`
 }
 
 type fcmErrorResponse struct {

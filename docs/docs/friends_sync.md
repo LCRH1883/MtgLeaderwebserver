@@ -161,6 +161,13 @@ POST /v1/friends/requests/{id}/cancel
 ```
   - Response: 204 No Content
 
+DELETE /v1/friends/{id}
+POST /v1/friends/{id}/remove
+  - Remove an accepted friend connection ("unfriend").
+  - `{id}` is the friend's user id.
+  - Response: 204 No Content
+  - If users are not friends, returns 404 Not Found.
+
 UserSummary fields
 ------------------
 - `id` (string)

@@ -21,6 +21,7 @@ type stubFriendshipsStore struct {
 	acceptFunc               func(context.Context, string, string, time.Time, bool) (bool, error)
 	declineFunc              func(context.Context, string, string, time.Time, bool) (bool, error)
 	cancelFunc               func(context.Context, string, string, time.Time, bool) (bool, error)
+	removeFriendFunc         func(context.Context, string, string, time.Time) (bool, error)
 	listOverviewFunc         func(context.Context, string) (domain.FriendsOverview, error)
 	areFriendsFunc           func(context.Context, string, string) (bool, error)
 	latestFriendshipUpdateFn func(context.Context, string) (time.Time, error)
@@ -55,6 +56,14 @@ func (s *stubFriendshipsStore) Cancel(ctx context.Context, requestID, requesterI
 		return s.cancelFunc(ctx, requestID, requesterID, when, checkUpdatedAt)
 	}
 	s.t.Fatalf("Cancel called unexpectedly")
+	return false, context.Canceled
+}
+
+func (s *stubFriendshipsStore) RemoveFriend(ctx context.Context, userID, friendID string, when time.Time) (bool, error) {
+	if s.removeFriendFunc != nil {
+		return s.removeFriendFunc(ctx, userID, friendID, when)
+	}
+	s.t.Fatalf("RemoveFriend called unexpectedly")
 	return false, context.Canceled
 }
 
@@ -225,5 +234,40 @@ func TestFriendsConnectionsETagNotModified(t *testing.T) {
 	}
 	if got := rr.Header().Get("ETag"); got != expectedETag {
 		t.Fatalf("unexpected etag: %s", got)
+	}
+}
+
+func TestFriendsRemoveReturnsNoContent(t *testing.T) {
+	now := time.Date(2026, 1, 5, 15, 0, 0, 0, time.UTC)
+
+	store := &stubFriendshipsStore{
+		t: t,
+		removeFriendFunc: func(_ context.Context, userID, friendID string, when time.Time) (bool, error) {
+			if userID != "user-1" || friendID != "user-2" {
+				t.Fatalf("unexpected ids: %s %s", userID, friendID)
+			}
+			if !when.Equal(now) {
+				t.Fatalf("unexpected when: %s", when)
+			}
+			return true, nil
+		},
+	}
+
+	api := &api{
+		friendsSvc: &service.FriendsService{
+			Friendships: store,
+			Now:         func() time.Time { return now },
+		},
+	}
+
+	req := httptest.NewRequest(http.MethodDelete, "/v1/friends/user-2", nil)
+	req.SetPathValue("id", "user-2")
+	req = req.WithContext(context.WithValue(req.Context(), authUserKey, domain.User{ID: "user-1"}))
+
+	rr := httptest.NewRecorder()
+	api.handleFriendsRemove(rr, req)
+
+	if rr.Code != http.StatusNoContent {
+		t.Fatalf("unexpected status: %d", rr.Code)
 	}
 }

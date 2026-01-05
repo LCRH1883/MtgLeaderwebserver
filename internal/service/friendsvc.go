@@ -14,6 +14,7 @@ type FriendshipsStore interface {
 	Accept(ctx context.Context, requestID, addresseeID string, when time.Time, checkUpdatedAt bool) (bool, error)
 	Decline(ctx context.Context, requestID, addresseeID string, when time.Time, checkUpdatedAt bool) (bool, error)
 	Cancel(ctx context.Context, requestID, requesterID string, when time.Time, checkUpdatedAt bool) (bool, error)
+	RemoveFriend(ctx context.Context, userID, friendID string, when time.Time) (bool, error)
 	ListOverview(ctx context.Context, userID string) (domain.FriendsOverview, error)
 	AreFriends(ctx context.Context, userA, userB string) (bool, error)
 	LatestFriendshipUpdate(ctx context.Context, userID string) (time.Time, error)
@@ -161,6 +162,30 @@ func (s *FriendsService) Cancel(ctx context.Context, requesterID, requestID stri
 		return FriendRequestActionConflict, nil
 	}
 	return FriendRequestActionApplied, nil
+}
+
+func (s *FriendsService) RemoveFriend(ctx context.Context, userID, friendID string) error {
+	if s.Now == nil {
+		s.Now = time.Now
+	}
+	userID = strings.TrimSpace(userID)
+	friendID = strings.TrimSpace(friendID)
+	if userID == "" || friendID == "" {
+		return domain.NewValidationError(map[string]string{"id": "required"})
+	}
+	if userID == friendID {
+		return domain.NewValidationError(map[string]string{"id": "cannot remove yourself"})
+	}
+
+	when := s.Now().UTC().Truncate(time.Millisecond)
+	ok, err := s.Friendships.RemoveFriend(ctx, userID, friendID, when)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return domain.ErrNotFound
+	}
+	return nil
 }
 
 func (s *FriendsService) AreFriends(ctx context.Context, userA, userB string) (bool, error) {

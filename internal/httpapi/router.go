@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"bytes"
 	"context"
 	"log/slog"
 	"net/http"
@@ -119,6 +120,8 @@ func NewRouter(opts RouterOpts) http.Handler {
 			apiMux.HandleFunc("POST /v1/friends/requests/{id}/accept", api.requireAuth(api.handleFriendsAccept))
 			apiMux.HandleFunc("POST /v1/friends/requests/{id}/decline", api.requireAuth(api.handleFriendsDecline))
 			apiMux.HandleFunc("POST /v1/friends/requests/{id}/cancel", api.requireAuth(api.handleFriendsCancel))
+			apiMux.HandleFunc("DELETE /v1/friends/{id}", api.requireAuth(api.handleFriendsRemove))
+			apiMux.HandleFunc("POST /v1/friends/{id}/remove", api.requireAuth(api.handleFriendsRemove))
 		}
 
 		if api.matchSvc != nil {
@@ -138,12 +141,15 @@ func NewRouter(opts RouterOpts) http.Handler {
 	}
 
 	apiHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		h, pattern := apiMux.Handler(r)
-		if pattern == "" {
+		// We need ServeMux.ServeHTTP to run so it populates r.PathValue(...) for patterns
+		// like "/v1/friends/requests/{id}/accept". We also want JSON 404s for API routes.
+		brw := newBufferedResponseWriter()
+		apiMux.ServeHTTP(brw, r)
+		if brw.status == http.StatusNotFound {
 			handleV1NotFound(w, r)
 			return
 		}
-		h.ServeHTTP(w, r)
+		brw.flushTo(w)
 	})
 
 	root := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -167,6 +173,41 @@ func handleNotImplemented(w http.ResponseWriter, _ *http.Request) {
 
 func handleV1NotFound(w http.ResponseWriter, _ *http.Request) {
 	WriteError(w, http.StatusNotFound, "not_found", "not found")
+}
+
+type bufferedResponseWriter struct {
+	header http.Header
+	status int
+	body   bytes.Buffer
+}
+
+func newBufferedResponseWriter() *bufferedResponseWriter {
+	return &bufferedResponseWriter{
+		header: make(http.Header),
+		status: http.StatusOK,
+	}
+}
+
+func (w *bufferedResponseWriter) Header() http.Header {
+	return w.header
+}
+
+func (w *bufferedResponseWriter) WriteHeader(status int) {
+	w.status = status
+}
+
+func (w *bufferedResponseWriter) Write(p []byte) (int, error) {
+	return w.body.Write(p)
+}
+
+func (w *bufferedResponseWriter) flushTo(dst http.ResponseWriter) {
+	for k, vv := range w.header {
+		for _, v := range vv {
+			dst.Header().Add(k, v)
+		}
+	}
+	dst.WriteHeader(w.status)
+	_, _ = dst.Write(w.body.Bytes())
 }
 
 type api struct {
