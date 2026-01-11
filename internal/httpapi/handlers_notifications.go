@@ -38,8 +38,10 @@ func (a *api) handleNotificationsTokenUpsert(w http.ResponseWriter, r *http.Requ
 		WriteDomainError(w, domain.NewValidationError(map[string]string{"token": "required", "platform": "required"}))
 		return
 	}
-	if platform != "android" {
-		WriteDomainError(w, domain.NewValidationError(map[string]string{"platform": "must be android"}))
+	switch platform {
+	case "android", "ios":
+	default:
+		WriteDomainError(w, domain.NewValidationError(map[string]string{"platform": "must be ios or android"}))
 		return
 	}
 

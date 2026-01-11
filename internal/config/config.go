@@ -1,10 +1,12 @@
 package config
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -33,6 +35,7 @@ type Config struct {
 }
 
 func Load() (Config, error) {
+	_ = loadDotEnvFile(".env", os.Setenv, os.Getenv)
 	return LoadFromEnv(os.Getenv)
 }
 
@@ -170,4 +173,51 @@ func contains(ss []string, needle string) bool {
 		}
 	}
 	return false
+}
+
+func loadDotEnvFile(path string, setenv func(string, string) error, getenv func(string) string) error {
+	path = filepath.Clean(path)
+
+	b, err := os.ReadFile(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return err
+	}
+
+	scanner := bufio.NewScanner(strings.NewReader(string(b)))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if strings.HasPrefix(line, "export ") {
+			line = strings.TrimSpace(strings.TrimPrefix(line, "export "))
+		}
+		key, value, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		key = strings.TrimSpace(key)
+		if key == "" {
+			continue
+		}
+		if getenv(key) != "" {
+			continue
+		}
+		value = strings.TrimSpace(value)
+		value = strings.TrimSuffix(value, "\r")
+		if value == "" {
+			continue
+		}
+		if (strings.HasPrefix(value, "\"") && strings.HasSuffix(value, "\"")) || (strings.HasPrefix(value, "'") && strings.HasSuffix(value, "'")) {
+			value = strings.TrimSuffix(strings.TrimPrefix(value, value[:1]), value[:1])
+		}
+		_ = setenv(key, value)
+	}
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+	return nil
 }

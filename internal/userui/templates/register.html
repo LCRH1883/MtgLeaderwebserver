@@ -5,51 +5,99 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>{{.Title}}</title>
+    <script type="module">
+      import "https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4";
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/app/static/app.css?v=7" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icon/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/icon/favicon-16.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon/android-chrome-192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icon/apple-touch-icon.png" />
+    <meta name="theme-color" content="#5a0a0f" />
+    <link rel="stylesheet" href="/app/static/bg.css?v=1" />
+    <link rel="stylesheet" href="/app/static/gothic.css?v=1" />
+    <script defer src="/app/static/bg.js?v=1"></script>
   </head>
-  <body class="auth-page">
-    <main class="auth-shell">
-      <section class="auth-card stack">
-        <div>
-          <p class="eyebrow">Create account</p>
-          <h1>Join MTG Friends.</h1>
-          <p class="lead">Pick a username so other players can find you.</p>
-        </div>
-        {{if .Error}}
-          <div class="alert">{{.Error}}</div>
-        {{end}}
-        <form method="post" action="/app/register" class="stack">
-          <label class="label" for="email">Email</label>
-          <input id="email" name="email" type="email" autocomplete="email" required value="{{.Email}}" />
-          <label class="label" for="username">Username</label>
-          <input id="username" name="username" type="text" autocomplete="username" required value="{{.Username}}" />
-          <div class="hint">3-24 characters, letters, numbers, underscore.</div>
-          <label class="label" for="password">Password</label>
-          <input id="password" name="password" type="password" autocomplete="new-password" required />
-          <div class="hint">Minimum 12 characters.</div>
-          <button type="submit">Create account</button>
-        </form>
-        <div class="muted small">Already have an account? <a class="inline-link" href="/app/login">Sign in</a>.</div>
-      </section>
-      <aside class="auth-panel">
-        <div class="auth-panel-inner stack">
-          <div>
-            <p class="eyebrow">Set up your deck</p>
-            <h2>Find your table.</h2>
-            <p class="lead">Create a profile that makes it easy to reconnect after every match.</p>
+  <body class="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50 to-amber-50 px-6 py-10 antialiased dark:from-slate-950 dark:via-slate-950 dark:to-slate-900" style="font-family: 'Work Sans','Helvetica Neue',Arial,sans-serif;">
+    <div class="mx-auto w-full max-w-6xl">
+      <header class="flex items-center justify-between gap-4">
+        <a class="flex items-center gap-3 no-underline" href="/">
+          <img class="h-11 w-11 rounded-2xl object-cover shadow-sm ring-1 ring-white/10" src="/img/wizard_icon.png" width="44" height="44" alt="MTG Leader" />
+          <span class="leading-tight">
+            <span class="block font-['Space_Grotesk'] text-lg font-bold text-slate-900 dark:text-slate-50">MTG Leader</span>
+            <span class="block text-sm text-slate-600 dark:text-slate-300">Magic: The Gathering playgroup toolkit</span>
+          </span>
+        </a>
+        <a class="hidden rounded-full border border-slate-900/10 bg-white/70 px-4 py-2 text-sm font-semibold text-slate-900 backdrop-blur hover:border-teal-700 hover:text-teal-700 dark:border-white/10 dark:bg-slate-950/30 dark:text-slate-50 lg:inline-flex" href="/app/login">Sign in</a>
+      </header>
+
+      <main class="mt-10 grid grid-cols-1 gap-8 lg:grid-cols-2 lg:items-stretch">
+        <section class="rounded-3xl border border-slate-900/10 bg-white/70 p-8 shadow-sm backdrop-blur dark:border-white/10 dark:bg-slate-950/30">
+          <div class="space-y-3">
+            <p class="text-xs font-semibold uppercase tracking-[0.25em] text-teal-700 dark:text-teal-300">Create account</p>
+            <h1 class="font-['Space_Grotesk'] text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50">Join MTG Friends.</h1>
+            <p class="text-sm leading-6 text-slate-600 dark:text-slate-300">Pick a username so other players can find you.</p>
           </div>
-          <ul class="feature-list">
-            <li><span class="feature-tag">01</span>Custom username for quick searches.</li>
-            <li><span class="feature-tag">02</span>Manage friend requests with ease.</li>
-            <li><span class="feature-tag">03</span>Track stats with a clean dashboard.</li>
-          </ul>
-          <div class="auth-panel-footer small">Already active? <a class="inline-link" href="/app/login">Return to sign in</a>.</div>
-        </div>
-      </aside>
-    </main>
+
+          {{if .Error}}
+            <div class="mt-6 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-900 dark:text-rose-100">{{.Error}}</div>
+          {{end}}
+
+          <form method="post" action="/app/register" class="mt-6 space-y-4">
+            <div class="space-y-1">
+              <label class="text-sm font-semibold text-slate-700 dark:text-slate-200" for="email">Email</label>
+              <input class="w-full rounded-xl border border-slate-300 bg-white/90 px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-200 dark:border-white/10 dark:bg-slate-950/30 dark:text-slate-50 dark:focus:ring-teal-500/30" id="email" name="email" type="email" autocomplete="email" required value="{{.Email}}" />
+            </div>
+            <div class="space-y-1">
+              <label class="text-sm font-semibold text-slate-700 dark:text-slate-200" for="username">Username</label>
+              <input class="w-full rounded-xl border border-slate-300 bg-white/90 px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-200 dark:border-white/10 dark:bg-slate-950/30 dark:text-slate-50 dark:focus:ring-teal-500/30" id="username" name="username" type="text" autocomplete="username" required value="{{.Username}}" />
+              <div class="text-xs text-slate-600 dark:text-slate-300">3-24 characters, letters, numbers, underscore.</div>
+            </div>
+            <div class="space-y-1">
+              <label class="text-sm font-semibold text-slate-700 dark:text-slate-200" for="password">Password</label>
+              <input class="w-full rounded-xl border border-slate-300 bg-white/90 px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-200 dark:border-white/10 dark:bg-slate-950/30 dark:text-slate-50 dark:focus:ring-teal-500/30" id="password" name="password" type="password" autocomplete="new-password" required />
+              <div class="text-xs text-slate-600 dark:text-slate-300">Minimum 12 characters.</div>
+            </div>
+            <button class="w-full rounded-xl bg-teal-700 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-300 dark:focus:ring-teal-500/40" type="submit">Create account</button>
+          </form>
+
+          <div class="mt-6 text-sm text-slate-600 dark:text-slate-300">
+            Already have an account? <a class="font-semibold text-teal-700 hover:text-teal-600 dark:text-teal-300 dark:hover:text-teal-200" href="/app/login">Sign in</a>.
+          </div>
+        </section>
+
+        <aside class="relative overflow-hidden rounded-3xl border border-slate-900/10 bg-gradient-to-br from-teal-700/10 via-teal-600/5 to-amber-400/10 p-8 shadow-sm dark:border-white/10 dark:from-rose-500/10 dark:via-rose-500/5 dark:to-orange-400/10">
+          <div class="space-y-4">
+            <div class="space-y-2">
+              <p class="text-xs font-semibold uppercase tracking-[0.25em] text-teal-700/90 dark:text-rose-200">Set up your deck</p>
+              <h2 class="font-['Space_Grotesk'] text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-50">Find your table.</h2>
+              <p class="text-sm leading-6 text-slate-700 dark:text-slate-200">Create a profile that makes it easy to reconnect after every match.</p>
+            </div>
+
+            <ul class="space-y-3 text-sm text-slate-700 dark:text-slate-200">
+              <li class="flex gap-3">
+                <span class="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-white/70 text-xs font-bold text-teal-700 ring-1 ring-slate-900/10 dark:bg-slate-950/30 dark:text-teal-200 dark:ring-white/10">01</span>
+                <span>Custom username for quick searches.</span>
+              </li>
+              <li class="flex gap-3">
+                <span class="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-white/70 text-xs font-bold text-teal-700 ring-1 ring-slate-900/10 dark:bg-slate-950/30 dark:text-teal-200 dark:ring-white/10">02</span>
+                <span>Manage friend requests with ease.</span>
+              </li>
+              <li class="flex gap-3">
+                <span class="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-white/70 text-xs font-bold text-teal-700 ring-1 ring-slate-900/10 dark:bg-slate-950/30 dark:text-teal-200 dark:ring-white/10">03</span>
+                <span>Track stats with a clean dashboard.</span>
+              </li>
+            </ul>
+
+            <div class="pt-2 text-sm text-slate-600 dark:text-slate-300">
+              Already active? <a class="font-semibold text-teal-700 hover:text-teal-600 dark:text-teal-300 dark:hover:text-teal-200" href="/app/login">Return to sign in</a>.
+            </div>
+          </div>
+        </aside>
+      </main>
+    </div>
     <script>
       (() => {
         const root = document.documentElement;
@@ -59,6 +107,13 @@
           if (stored === "dark" || stored === "light") {
             root.setAttribute("data-theme", stored);
             document.body.setAttribute("data-theme", stored);
+            if (stored === "dark") {
+              root.classList.add("dark");
+            } else {
+              root.classList.remove("dark");
+            }
+          } else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+            root.classList.add("dark");
           }
         } catch (err) {}
       })();

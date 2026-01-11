@@ -1,12 +1,23 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"image"
+	"image/color"
+	"image/png"
+	"math"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
+	"path"
+	"sort"
+	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -130,6 +141,58 @@ func main() {
 	})
 
 	root := http.NewServeMux()
+
+	imgDir := "img"
+	iconSource := path.Join(imgDir, "wizard_icon.png")
+	iconSvc := &iconService{
+		sourcePath: iconSource,
+	}
+
+	root.HandleFunc("GET /favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		// Browsers still request /favicon.ico by default. Serve a PNG anyway.
+		iconSvc.ServeNamedPNG(w, r, "favicon-32.png")
+	})
+	root.HandleFunc("GET /icon/{name}", func(w http.ResponseWriter, r *http.Request) {
+		iconSvc.ServeNamedPNG(w, r, r.PathValue("name"))
+	})
+
+	root.HandleFunc("GET /img/index.json", func(w http.ResponseWriter, r *http.Request) {
+		entries, err := os.ReadDir(imgDir)
+		if err != nil {
+			http.Error(w, "img directory not available", http.StatusNotFound)
+			return
+		}
+
+		var files []string
+		for _, ent := range entries {
+			if ent.IsDir() {
+				continue
+			}
+			name := ent.Name()
+			ext := strings.ToLower(path.Ext(name))
+			switch ext {
+			case ".png", ".jpg", ".jpeg", ".webp":
+				files = append(files, "/img/"+url.PathEscape(name))
+			default:
+				continue
+			}
+		}
+		sort.Strings(files)
+
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-cache")
+		_ = json.NewEncoder(w).Encode(map[string]any{"images": files})
+	})
+
+	imgFS := http.StripPrefix("/img/", http.FileServer(http.Dir(imgDir)))
+	root.Handle("/img/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/img" || r.URL.Path == "/img/" {
+			http.NotFound(w, r)
+			return
+		}
+		imgFS.ServeHTTP(w, r)
+	}))
+
 	root.Handle("/", apiRouter)
 
 	if adminSvc != nil && authSvc != nil && len(cfg.AdminEmails) > 0 {
@@ -202,6 +265,168 @@ func main() {
 			os.Exit(1)
 		}
 	}
+}
+
+type iconService struct {
+	sourcePath string
+
+	mu       sync.Mutex
+	cachedAt time.Time
+	srcMod   time.Time
+	cache    map[string][]byte
+}
+
+func (s *iconService) ServeNamedPNG(w http.ResponseWriter, r *http.Request, name string) {
+	size, ok := iconSizeForName(name)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+
+	b, mod, err := s.pngBytes(name, size)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	w.Header().Set("Content-Type", "image/png")
+	w.Header().Set("Cache-Control", "public, max-age=86400, immutable")
+	w.Header().Set("Last-Modified", mod.UTC().Format(http.TimeFormat))
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(b)
+}
+
+func iconSizeForName(name string) (int, bool) {
+	switch name {
+	case "favicon-16.png":
+		return 16, true
+	case "favicon-32.png":
+		return 32, true
+	case "apple-touch-icon.png":
+		return 180, true
+	case "android-chrome-192.png":
+		return 192, true
+	case "android-chrome-512.png":
+		return 512, true
+	default:
+		return 0, false
+	}
+}
+
+func (s *iconService) pngBytes(name string, size int) ([]byte, time.Time, error) {
+	fi, err := os.Stat(s.sourcePath)
+	if err != nil {
+		return nil, time.Time{}, err
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.cache == nil {
+		s.cache = make(map[string][]byte)
+	}
+	if !s.srcMod.Equal(fi.ModTime()) {
+		s.cache = make(map[string][]byte)
+		s.srcMod = fi.ModTime()
+		s.cachedAt = time.Now()
+	}
+	if b, ok := s.cache[name]; ok {
+		return b, s.srcMod, nil
+	}
+
+	srcBytes, err := os.ReadFile(s.sourcePath)
+	if err != nil {
+		return nil, time.Time{}, err
+	}
+	srcImg, err := png.Decode(bytes.NewReader(srcBytes))
+	if err != nil {
+		return nil, time.Time{}, err
+	}
+
+	dst := resizeBilinear(srcImg, size)
+	var out bytes.Buffer
+	if err := png.Encode(&out, dst); err != nil {
+		return nil, time.Time{}, err
+	}
+	b := out.Bytes()
+	s.cache[name] = b
+	return b, s.srcMod, nil
+}
+
+func resizeBilinear(src image.Image, size int) *image.RGBA {
+	dst := image.NewRGBA(image.Rect(0, 0, size, size))
+	sb := src.Bounds()
+	sw := sb.Dx()
+	sh := sb.Dy()
+	if sw <= 0 || sh <= 0 {
+		return dst
+	}
+
+	if size == 1 {
+		dst.Set(0, 0, src.At(sb.Min.X, sb.Min.Y))
+		return dst
+	}
+
+	for y := 0; y < size; y++ {
+		fy := float64(y) * float64(sh-1) / float64(size-1)
+		y0 := int(math.Floor(fy))
+		y1 := y0 + 1
+		if y1 >= sh {
+			y1 = sh - 1
+		}
+		wy := fy - float64(y0)
+
+		for x := 0; x < size; x++ {
+			fx := float64(x) * float64(sw-1) / float64(size-1)
+			x0 := int(math.Floor(fx))
+			x1 := x0 + 1
+			if x1 >= sw {
+				x1 = sw - 1
+			}
+			wx := fx - float64(x0)
+
+			r00, g00, b00, a00 := src.At(sb.Min.X+x0, sb.Min.Y+y0).RGBA()
+			r10, g10, b10, a10 := src.At(sb.Min.X+x1, sb.Min.Y+y0).RGBA()
+			r01, g01, b01, a01 := src.At(sb.Min.X+x0, sb.Min.Y+y1).RGBA()
+			r11, g11, b11, a11 := src.At(sb.Min.X+x1, sb.Min.Y+y1).RGBA()
+
+			r0 := (1-wx)*float64(r00) + wx*float64(r10)
+			r1 := (1-wx)*float64(r01) + wx*float64(r11)
+			g0 := (1-wx)*float64(g00) + wx*float64(g10)
+			g1 := (1-wx)*float64(g01) + wx*float64(g11)
+			b0 := (1-wx)*float64(b00) + wx*float64(b10)
+			b1 := (1-wx)*float64(b01) + wx*float64(b11)
+			a0 := (1-wx)*float64(a00) + wx*float64(a10)
+			a1 := (1-wx)*float64(a01) + wx*float64(a11)
+
+			r := (1-wy)*r0 + wy*r1
+			g := (1-wy)*g0 + wy*g1
+			b := (1-wy)*b0 + wy*b1
+			a := (1-wy)*a0 + wy*a1
+
+			dst.SetRGBA(x, y, rgba64ToRGBA(r, g, b, a))
+		}
+	}
+	return dst
+}
+
+func rgba64ToRGBA(r, g, b, a float64) color.RGBA {
+	return color.RGBA{
+		R: uint8(clampTo8(r)),
+		G: uint8(clampTo8(g)),
+		B: uint8(clampTo8(b)),
+		A: uint8(clampTo8(a)),
+	}
+}
+
+func clampTo8(v float64) uint32 {
+	if v < 0 {
+		return 0
+	}
+	if v > 65535 {
+		return 255
+	}
+	return uint32(v+0.5) >> 8
 }
 
 func bootstrapAdminUser(ctx context.Context, logger *slog.Logger, users *postgres.UsersStore, email, username, password string) error {

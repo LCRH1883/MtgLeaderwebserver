@@ -22,7 +22,7 @@ type NotificationUsersStore interface {
 }
 
 type PushSender interface {
-	Send(ctx context.Context, token string, data map[string]string) error
+	Send(ctx context.Context, token string, msg notifications.Message) error
 }
 
 type FriendRequestNotification struct {
@@ -51,6 +51,11 @@ func (s *NotificationService) RegisterToken(ctx context.Context, userID, token, 
 	platform = strings.TrimSpace(strings.ToLower(platform))
 	if token == "" || platform == "" {
 		return domain.NotificationToken{}, domain.NewValidationError(map[string]string{"token": "required", "platform": "required"})
+	}
+	switch platform {
+	case "android", "ios":
+	default:
+		return domain.NotificationToken{}, domain.NewValidationError(map[string]string{"platform": "must be ios or android"})
 	}
 	if s.Now == nil {
 		s.Now = time.Now
@@ -105,8 +110,28 @@ func (s *NotificationService) NotifyFriendRequest(ctx context.Context, notificat
 		"request_id":   notification.RequestID,
 	}
 
+	title := "Friend request"
+	body := "You received a friend request."
+	if display != "" {
+		body = display + " sent you a friend request."
+	}
+	dataOnlyMsg := notifications.Message{
+		Data: payload,
+	}
+	iosAlertMsg := notifications.Message{
+		Data: payload,
+		Notification: &notifications.Notification{
+			Title: title,
+			Body:  body,
+		},
+	}
+
 	for _, token := range tokens {
-		if err := s.Sender.Send(ctx, token.Token, payload); err != nil {
+		msg := dataOnlyMsg
+		if strings.TrimSpace(strings.ToLower(token.Platform)) == "ios" {
+			msg = iosAlertMsg
+		}
+		if err := s.Sender.Send(ctx, token.Token, msg); err != nil {
 			if errors.Is(err, notifications.ErrInvalidToken) {
 				if delErr := s.Tokens.DeleteToken(ctx, notification.AddresseeID, token.Token); delErr != nil {
 					logger.Error("notifications: delete invalid token failed", "err", delErr, "user_id", notification.AddresseeID)

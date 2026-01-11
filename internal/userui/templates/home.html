@@ -1,39 +1,37 @@
 {{define "content"}}
-<section class="stack">
-  <div>
-    <p class="eyebrow">Welcome</p>
-    <h1>Your MTG Leader home base.</h1>
-    <p class="lead">Jump into friends, stats, and more as we expand the platform.</p>
-  </div>
+<section class="space-y-3">
+  <p class="text-xs font-semibold uppercase tracking-[0.25em] text-teal-700 dark:text-teal-300">Welcome</p>
+  <h1 class="font-['Space_Grotesk'] text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50">Your MTG Leader home base.</h1>
+  <p class="text-sm leading-6 text-slate-600 dark:text-slate-300">Jump into friends, stats, and more as we expand the platform.</p>
 </section>
 
 {{if .Error}}
-  <div class="alert">{{.Error}}</div>
+  <div class="mt-6 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-900 dark:text-rose-100">{{.Error}}</div>
 {{end}}
 {{if .Notice}}
-  <div class="notice">{{.Notice}}</div>
+  <div class="mt-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-900 dark:text-emerald-100">{{.Notice}}</div>
 {{end}}
 
-<section class="home-grid">
-  <a class="home-card" href="/app/friends">
-    <div class="home-card-title">Friends</div>
-    <div class="home-card-sub">Search players, manage requests, and keep your pod together.</div>
-    <div class="home-card-cta">Open Friends</div>
+<section class="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
+  <a class="group rounded-3xl border border-slate-900/10 bg-white/70 p-6 shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:border-teal-700/40 dark:border-white/10 dark:bg-slate-950/30" href="/app/friends">
+    <div class="font-['Space_Grotesk'] text-xl font-bold text-slate-900 dark:text-slate-50">Friends</div>
+    <div class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">Search players, manage requests, and keep your pod together.</div>
+    <div class="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-teal-700 group-hover:text-teal-600 dark:text-teal-300 dark:group-hover:text-teal-200">Open Friends →</div>
   </a>
-  <a class="home-card" href="/app/matches">
-    <div class="home-card-title">Matches</div>
-    <div class="home-card-sub">Review recent games, winners, and placements.</div>
-    <div class="home-card-cta">View Matches</div>
+  <a class="group rounded-3xl border border-slate-900/10 bg-white/70 p-6 shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:border-teal-700/40 dark:border-white/10 dark:bg-slate-950/30" href="/app/matches">
+    <div class="font-['Space_Grotesk'] text-xl font-bold text-slate-900 dark:text-slate-50">Matches</div>
+    <div class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">Review recent games, winners, and placements.</div>
+    <div class="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-teal-700 group-hover:text-teal-600 dark:text-teal-300 dark:group-hover:text-teal-200">View Matches →</div>
   </a>
-  <a class="home-card" href="/app/stats">
-    <div class="home-card-title">Stats</div>
-    <div class="home-card-sub">Track win rates, formats, and pace.</div>
-    <div class="home-card-cta">View Stats</div>
+  <a class="group rounded-3xl border border-slate-900/10 bg-white/70 p-6 shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:border-teal-700/40 dark:border-white/10 dark:bg-slate-950/30" href="/app/stats">
+    <div class="font-['Space_Grotesk'] text-xl font-bold text-slate-900 dark:text-slate-50">Stats</div>
+    <div class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">Track win rates, formats, and pace.</div>
+    <div class="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-teal-700 group-hover:text-teal-600 dark:text-teal-300 dark:group-hover:text-teal-200">View Stats →</div>
   </a>
-  <a class="home-card" href="/app/profile">
-    <div class="home-card-title">Profile</div>
-    <div class="home-card-sub">Update your name and avatar before you join a pod.</div>
-    <div class="home-card-cta">Edit Profile</div>
+  <a class="group rounded-3xl border border-slate-900/10 bg-white/70 p-6 shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:border-teal-700/40 dark:border-white/10 dark:bg-slate-950/30" href="/app/profile">
+    <div class="font-['Space_Grotesk'] text-xl font-bold text-slate-900 dark:text-slate-50">Profile</div>
+    <div class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">Update your name and avatar before you join a pod.</div>
+    <div class="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-teal-700 group-hover:text-teal-600 dark:text-teal-300 dark:group-hover:text-teal-200">Edit Profile →</div>
   </a>
 </section>
 {{end}}

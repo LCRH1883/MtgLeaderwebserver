@@ -1,0 +1,31 @@
+:root {
+  --mtg-bg-image: none;
+  --mtg-bg-position: center top;
+}
+
+body {
+  position: relative;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: var(--mtg-bg-image);
+  background-position: var(--mtg-bg-position);
+  background-repeat: no-repeat;
+  background-size: cover;
+  filter: saturate(1.05) contrast(1.05);
+  opacity: 0.16;
+  pointer-events: none;
+  z-index: 0;
+}
+
+body > * {
+  position: relative;
+  z-index: 1;
+}
+
+html.dark body::before {
+  opacity: 0.1;
+}

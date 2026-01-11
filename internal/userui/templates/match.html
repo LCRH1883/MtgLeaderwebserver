@@ -1,37 +1,35 @@
 {{define "content"}}
-<section class="stack">
-  <div>
-    <p class="eyebrow">Match detail</p>
-    <h1>{{.PlayedAt}}</h1>
-    <p class="lead">{{.Match.Format}} · {{len .Match.Players}} players</p>
-  </div>
+<section class="space-y-3">
+  <p class="text-xs font-semibold uppercase tracking-[0.25em] text-teal-700 dark:text-teal-300">Match detail</p>
+  <h1 class="font-['Space_Grotesk'] text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50">{{.PlayedAt}}</h1>
+  <p class="text-sm leading-6 text-slate-600 dark:text-slate-300">{{.Match.Format}} · {{len .Match.Players}} players</p>
 </section>
 
 {{if .Error}}
-  <div class="alert">{{.Error}}</div>
+  <div class="mt-6 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-900 dark:text-rose-100">{{.Error}}</div>
 {{end}}
 
-<section class="panel">
-  <div class="panel-header">
-    <h2>Summary</h2>
-    <div class="muted">Completed match overview</div>
+<section class="mt-8 rounded-3xl border border-slate-900/10 bg-white/70 p-6 shadow-sm backdrop-blur dark:border-white/10 dark:bg-slate-950/30">
+  <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+    <h2 class="font-['Space_Grotesk'] text-xl font-bold text-slate-900 dark:text-slate-50">Summary</h2>
+    <div class="text-sm text-slate-600 dark:text-slate-300">Completed match overview</div>
   </div>
-  <div class="match-meta">
-    <div class="match-stat">
-      <div class="stat-label">Duration</div>
-      <div class="stat-value">{{.Duration}}</div>
+  <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="rounded-2xl border border-slate-900/10 bg-white/60 p-4 shadow-sm dark:border-white/10 dark:bg-slate-950/20">
+      <div class="text-xs font-semibold text-slate-600 dark:text-slate-300">Duration</div>
+      <div class="mt-1 font-['Space_Grotesk'] text-xl font-bold text-slate-900 dark:text-slate-50">{{.Duration}}</div>
     </div>
-    <div class="match-stat">
-      <div class="stat-label">Turns</div>
-      <div class="stat-value">{{.Match.TurnCount}}</div>
+    <div class="rounded-2xl border border-slate-900/10 bg-white/60 p-4 shadow-sm dark:border-white/10 dark:bg-slate-950/20">
+      <div class="text-xs font-semibold text-slate-600 dark:text-slate-300">Turns</div>
+      <div class="mt-1 font-['Space_Grotesk'] text-xl font-bold text-slate-900 dark:text-slate-50">{{.Match.TurnCount}}</div>
     </div>
-    <div class="match-stat">
-      <div class="stat-label">Avg turn</div>
-      <div class="stat-value">{{.AvgTurn}}</div>
+    <div class="rounded-2xl border border-slate-900/10 bg-white/60 p-4 shadow-sm dark:border-white/10 dark:bg-slate-950/20">
+      <div class="text-xs font-semibold text-slate-600 dark:text-slate-300">Avg turn</div>
+      <div class="mt-1 font-['Space_Grotesk'] text-xl font-bold text-slate-900 dark:text-slate-50">{{.AvgTurn}}</div>
     </div>
-    <div class="match-stat">
-      <div class="stat-label">Winner</div>
-      <div class="stat-value">
+    <div class="rounded-2xl border border-slate-900/10 bg-white/60 p-4 shadow-sm dark:border-white/10 dark:bg-slate-950/20">
+      <div class="text-xs font-semibold text-slate-600 dark:text-slate-300">Winner</div>
+      <div class="mt-1 font-['Space_Grotesk'] text-xl font-bold text-slate-900 dark:text-slate-50">
         {{if .Match.WinnerID}}
           {{range .Match.Players}}
             {{if .IsWinner}}@{{.User.Username}}{{end}}
@@ -44,37 +42,37 @@
   </div>
 </section>
 
-<section class="panel">
-  <div class="panel-header">
-    <h2>Placements</h2>
-    <div class="muted">Ordered by rank</div>
+<section class="mt-8 rounded-3xl border border-slate-900/10 bg-white/70 p-6 shadow-sm backdrop-blur dark:border-white/10 dark:bg-slate-950/30">
+  <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+    <h2 class="font-['Space_Grotesk'] text-xl font-bold text-slate-900 dark:text-slate-50">Placements</h2>
+    <div class="text-sm text-slate-600 dark:text-slate-300">Ordered by rank</div>
   </div>
   {{if .Match.Players}}
-    <div class="list">
+    <div class="mt-4 space-y-3">
       {{range .Match.Players}}
-        <div class="list-row match-player">
-          <div class="match-player-info">
-            <div class="match-player-name">@{{.User.Username}}</div>
-            <div class="muted small">{{if .IsWinner}}Winner{{else}}Player{{end}}</div>
+        <div class="flex flex-col gap-3 rounded-2xl border border-slate-900/10 bg-white/60 p-4 shadow-sm dark:border-white/10 dark:bg-slate-950/20 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div class="font-semibold text-slate-900 dark:text-slate-50">@{{.User.Username}}</div>
+            <div class="text-xs text-slate-600 dark:text-slate-300">{{if .IsWinner}}Winner{{else}}Player{{end}}</div>
           </div>
-          <div class="stats-inline">
+          <div class="flex flex-wrap gap-2">
             {{if .Rank}}
-              <span class="pill {{if .IsWinner}}success{{end}}">Rank {{.Rank}}</span>
+              <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold {{if .IsWinner}}bg-emerald-500/15 text-emerald-700 dark:text-emerald-200{{else}}border border-slate-900/10 bg-white/60 text-slate-700 dark:border-white/10 dark:bg-slate-950/20 dark:text-slate-200{{end}}">Rank {{.Rank}}</span>
             {{else}}
-              <span class="pill">Rank —</span>
+              <span class="inline-flex items-center rounded-full border border-slate-900/10 bg-white/60 px-3 py-1 text-xs font-semibold text-slate-700 dark:border-white/10 dark:bg-slate-950/20 dark:text-slate-200">Rank —</span>
             {{end}}
             {{if .EliminationTurn}}
-              <span class="pill">Turn {{.EliminationTurn}}</span>
+              <span class="inline-flex items-center rounded-full border border-slate-900/10 bg-white/60 px-3 py-1 text-xs font-semibold text-slate-700 dark:border-white/10 dark:bg-slate-950/20 dark:text-slate-200">Turn {{.EliminationTurn}}</span>
             {{end}}
             {{if .EliminationBatch}}
-              <span class="pill">Batch {{.EliminationBatch}}</span>
+              <span class="inline-flex items-center rounded-full border border-slate-900/10 bg-white/60 px-3 py-1 text-xs font-semibold text-slate-700 dark:border-white/10 dark:bg-slate-950/20 dark:text-slate-200">Batch {{.EliminationBatch}}</span>
             {{end}}
           </div>
         </div>
       {{end}}
     </div>
   {{else}}
-    <div class="empty muted">No player results yet.</div>
+    <div class="mt-4 text-sm text-slate-600 dark:text-slate-300">No player results yet.</div>
   {{end}}
 </section>
 {{end}}

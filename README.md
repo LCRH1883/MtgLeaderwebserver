@@ -123,6 +123,21 @@ curl -i -sS "$BASE_URL/v1/stats/summary" -b cookies.txt
 - environment example: `deploy/mtgleaderwebserver.env.example`
   - If `APP_AVATAR_DIR` points outside the working directory, update `ReadWritePaths` in the systemd unit and ensure the folder is writable by the service user.
 
+### Restarting the server
+If you installed this as a systemd service, restart it with:
+```bash
+sudo systemctl restart mtgleaderwebserver
+sudo systemctl status mtgleaderwebserver --no-pager
+sudo journalctl -u mtgleaderwebserver -f
+```
+
+If you’re not sure what the unit is called:
+```bash
+sudo systemctl list-unit-files --type=service | grep -i mtg
+```
+
+If you run it manually (no systemd), stop the PID from `server.manual.pid` and start it again.
+
 ### Reverse proxy (Nginx Proxy Manager or nginx)
 When proxying HTTPS -> HTTP (e.g. `mtgleader.xyz` -> `http://192.168.2.209:80`), you must:
 - Set `APP_PUBLIC_URL=https://mtgleader.xyz` so cookies are marked `Secure`.

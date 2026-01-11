@@ -5,20 +5,32 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>{{.Title}}</title>
+    <script type="module">
+      import "https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4";
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/app/static/app.css?v=7" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icon/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/icon/favicon-16.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon/android-chrome-192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icon/apple-touch-icon.png" />
+    <meta name="theme-color" content="#5a0a0f" />
+    <link rel="stylesheet" href="/app/static/bg.css?v=1" />
+    <link rel="stylesheet" href="/app/static/gothic.css?v=1" />
+    <script defer src="/app/static/bg.js?v=1"></script>
   </head>
-  <body class="auth-page">
-    <main class="container auth">
-      <div class="auth-card stack">
-        <div>
-          <p class="eyebrow">Oops</p>
-          <h1>{{.Title}}</h1>
-          <p class="lead">{{.Error}}</p>
+  <body class="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50 to-amber-50 px-6 py-10 antialiased dark:from-slate-950 dark:via-slate-950 dark:to-slate-900" style="font-family: 'Work Sans','Helvetica Neue',Arial,sans-serif;">
+    <main class="mx-auto flex w-full max-w-2xl flex-col justify-center">
+      <div class="rounded-3xl border border-slate-900/10 bg-white/70 p-8 shadow-sm backdrop-blur dark:border-white/10 dark:bg-slate-950/30">
+        <div class="space-y-3">
+          <p class="text-xs font-semibold uppercase tracking-[0.25em] text-teal-700 dark:text-teal-300">Oops</p>
+          <h1 class="font-['Space_Grotesk'] text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50">{{.Title}}</h1>
+          <p class="text-sm leading-6 text-slate-600 dark:text-slate-300">{{.Error}}</p>
         </div>
-        <a class="pill-link" href="/app/">Back to friends</a>
+        <div class="mt-6">
+          <a class="inline-flex items-center justify-center rounded-xl bg-teal-700 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-300 dark:focus:ring-teal-500/40" href="/app/">Back to friends</a>
+        </div>
       </div>
     </main>
     <script>
@@ -30,6 +42,13 @@
           if (stored === "dark" || stored === "light") {
             root.setAttribute("data-theme", stored);
             document.body.setAttribute("data-theme", stored);
+            if (stored === "dark") {
+              root.classList.add("dark");
+            } else {
+              root.classList.remove("dark");
+            }
+          } else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+            root.classList.add("dark");
           }
         } catch (err) {}
       })();

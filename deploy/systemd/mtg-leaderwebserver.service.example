@@ -4,6 +4,8 @@ After=network.target
 
 [Service]
 Type=simple
+# Suggested install name: /etc/systemd/system/mtgleaderwebserver.service
+# (the unit name you restart is the filename without the .service suffix)
 User=mtg
 Group=mtg
 WorkingDirectory=/opt/mtgleaderwebserver

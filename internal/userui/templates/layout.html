@@ -5,37 +5,49 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>{{.Title}}</title>
+    <script type="module">
+      import "https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4";
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/app/static/app.css?v=7" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icon/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/icon/favicon-16.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon/android-chrome-192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icon/apple-touch-icon.png" />
+    <meta name="theme-color" content="#5a0a0f" />
+    <link rel="stylesheet" href="/app/static/bg.css?v=1" />
+    <link rel="stylesheet" href="/app/static/gothic.css?v=1" />
+    <script defer src="/app/static/bg.js?v=1"></script>
   </head>
-  <body>
-    <header class="topbar">
-      <div class="container topbar-inner">
-        <a class="brand" href="/app/">
-          <span class="brand-mark">MTG</span>
-          <div>
-            <div class="brand-title">MTG Leader</div>
-            <div class="brand-sub">Your playgroup hub</div>
-          </div>
+  <body class="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50 to-amber-50 antialiased dark:from-slate-950 dark:via-slate-950 dark:to-slate-900" style="font-family: 'Work Sans','Helvetica Neue',Arial,sans-serif;">
+    <header class="sticky top-0 z-10 border-b border-slate-900/10 bg-white/70 backdrop-blur dark:border-white/10 dark:bg-slate-950/40">
+      <div class="mx-auto flex w-full max-w-6xl flex-col gap-4 px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
+        <a class="flex items-center gap-3 no-underline" href="/app/">
+          <img class="h-11 w-11 rounded-2xl object-cover shadow-sm ring-1 ring-white/10" src="/img/wizard_icon.png" width="44" height="44" alt="MTG Leader" />
+          <span class="leading-tight">
+            <span class="block font-['Space_Grotesk'] text-lg font-bold text-slate-900 dark:text-slate-50">MTG Leader</span>
+            <span class="block text-sm text-slate-600 dark:text-slate-300">Your playgroup hub</span>
+          </span>
         </a>
-        <div class="nav">
-          <a class="nav-link" href="/app/">Home</a>
-          <a class="nav-link" href="/app/friends">Friends</a>
-          <a class="nav-link" href="/app/matches">Matches</a>
-          <a class="nav-link" href="/app/stats">Stats</a>
-          <a class="nav-link" href="/wiki">Wiki</a>
-          <button class="nav-toggle" type="button" id="theme-toggle" aria-pressed="false">Dark mode</button>
-          <div class="nav-user">Signed in as <span>{{if .User.DisplayName}}{{.User.DisplayName}}{{else}}@{{.User.Username}}{{end}}</span></div>
-          <a class="nav-link" href="/app/profile">Profile</a>
+        <div class="flex flex-wrap items-center gap-3">
+          <a class="inline-flex items-center rounded-full border border-slate-900/10 bg-white/60 px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:border-teal-700 hover:text-teal-700 dark:border-white/10 dark:bg-slate-950/20 dark:text-slate-50 dark:hover:text-teal-200" href="/app/">Home</a>
+          <a class="inline-flex items-center rounded-full border border-slate-900/10 bg-white/60 px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:border-teal-700 hover:text-teal-700 dark:border-white/10 dark:bg-slate-950/20 dark:text-slate-50 dark:hover:text-teal-200" href="/app/friends">Friends</a>
+          <a class="inline-flex items-center rounded-full border border-slate-900/10 bg-white/60 px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:border-teal-700 hover:text-teal-700 dark:border-white/10 dark:bg-slate-950/20 dark:text-slate-50 dark:hover:text-teal-200" href="/app/matches">Matches</a>
+          <a class="inline-flex items-center rounded-full border border-slate-900/10 bg-white/60 px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:border-teal-700 hover:text-teal-700 dark:border-white/10 dark:bg-slate-950/20 dark:text-slate-50 dark:hover:text-teal-200" href="/app/stats">Stats</a>
+          <a class="inline-flex items-center rounded-full border border-slate-900/10 bg-white/60 px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:border-teal-700 hover:text-teal-700 dark:border-white/10 dark:bg-slate-950/20 dark:text-slate-50 dark:hover:text-teal-200" href="/wiki">Wiki</a>
+          <button class="inline-flex items-center rounded-full border border-slate-900/10 bg-white/60 px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:border-teal-700 hover:text-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-300 dark:border-white/10 dark:bg-slate-950/20 dark:text-slate-50 dark:hover:text-teal-200 dark:focus:ring-teal-500/40" type="button" id="theme-toggle" aria-pressed="false">Dark mode</button>
+          <div class="text-sm text-slate-600 dark:text-slate-300">
+            Signed in as <span class="font-semibold text-slate-900 dark:text-slate-50">{{if .User.DisplayName}}{{.User.DisplayName}}{{else}}@{{.User.Username}}{{end}}</span>
+          </div>
+          <a class="inline-flex items-center rounded-full border border-slate-900/10 bg-white/60 px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:border-teal-700 hover:text-teal-700 dark:border-white/10 dark:bg-slate-950/20 dark:text-slate-50 dark:hover:text-teal-200" href="/app/profile">Profile</a>
           <form method="post" action="/app/logout">
-            <button class="ghost" type="submit">Logout</button>
+            <button class="inline-flex items-center rounded-full border border-slate-900/10 bg-white/60 px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:border-rose-600 hover:text-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-300 dark:border-white/10 dark:bg-slate-950/20 dark:text-slate-50 dark:hover:text-rose-200 dark:focus:ring-rose-500/40" type="submit">Logout</button>
           </form>
         </div>
       </div>
     </header>
-    <main class="container">
+    <main class="mx-auto w-full max-w-6xl px-6 py-8">
       {{template "content" .}}
     </main>
     <script>
@@ -50,11 +62,17 @@
             if (document.body) {
               document.body.setAttribute("data-theme", theme);
             }
+            if (theme === "dark") {
+              root.classList.add("dark");
+            } else {
+              root.classList.remove("dark");
+            }
           } else {
             root.removeAttribute("data-theme");
             if (document.body) {
               document.body.removeAttribute("data-theme");
             }
+            root.classList.remove("dark");
           }
           updateLabel(theme);
         };
@@ -75,6 +93,12 @@
         if (stored === "dark" || stored === "light") {
           applyTheme(stored);
         } else {
+          const p = preferred();
+          if (p === "dark") {
+            root.classList.add("dark");
+          } else {
+            root.classList.remove("dark");
+          }
           updateLabel();
         }
         if (button) {

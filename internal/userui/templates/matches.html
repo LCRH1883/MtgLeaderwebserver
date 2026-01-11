@@ -1,42 +1,40 @@
 {{define "content"}}
-<section class="stack">
-  <div>
-    <p class="eyebrow">Matches</p>
-    <h1>Recent games in your pod.</h1>
-    <p class="lead">Review formats, winners, and pace from your latest matches.</p>
-  </div>
+<section class="space-y-3">
+  <p class="text-xs font-semibold uppercase tracking-[0.25em] text-teal-700 dark:text-teal-300">Matches</p>
+  <h1 class="font-['Space_Grotesk'] text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50">Recent games in your pod.</h1>
+  <p class="text-sm leading-6 text-slate-600 dark:text-slate-300">Review formats, winners, and pace from your latest matches.</p>
 </section>
 
 {{if .Error}}
-  <div class="alert">{{.Error}}</div>
+  <div class="mt-6 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-900 dark:text-rose-100">{{.Error}}</div>
 {{end}}
 {{if .Notice}}
-  <div class="notice">{{.Notice}}</div>
+  <div class="mt-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-900 dark:text-emerald-100">{{.Notice}}</div>
 {{end}}
 
-<section class="panel">
-  <div class="panel-header">
-    <h2>Recent matches</h2>
-    <div class="muted">{{len .Matches}} total</div>
+<section class="mt-8 rounded-3xl border border-slate-900/10 bg-white/70 p-6 shadow-sm backdrop-blur dark:border-white/10 dark:bg-slate-950/30">
+  <div class="flex items-end justify-between gap-3">
+    <h2 class="font-['Space_Grotesk'] text-xl font-bold text-slate-900 dark:text-slate-50">Recent matches</h2>
+    <div class="text-sm text-slate-600 dark:text-slate-300">{{len .Matches}} total</div>
   </div>
   {{if .Matches}}
-    <div class="list">
+    <div class="mt-4 space-y-3">
       {{range .Matches}}
-        <a class="list-row match-row" href="/app/matches/{{.ID}}">
+        <a class="group flex flex-col gap-3 rounded-2xl border border-slate-900/10 bg-white/60 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-teal-700/40 dark:border-white/10 dark:bg-slate-950/20 sm:flex-row sm:items-center sm:justify-between" href="/app/matches/{{.ID}}">
           <div>
-            <div class="match-title">{{.PlayedAt}}</div>
-            <div class="muted small">{{.Format}} · {{.Players}} players</div>
+            <div class="font-semibold text-slate-900 group-hover:text-teal-700 dark:text-slate-50 dark:group-hover:text-teal-200">{{.PlayedAt}}</div>
+            <div class="text-xs text-slate-600 dark:text-slate-300">{{.Format}} · {{.Players}} players</div>
           </div>
-          <div class="stats-inline">
-            <span class="pill">{{.Duration}}</span>
-            <span class="pill">{{.TurnCount}} turns</span>
-            <span class="pill">Winner {{.Winner}}</span>
+          <div class="flex flex-wrap gap-2">
+            <span class="inline-flex items-center rounded-full border border-slate-900/10 bg-white/60 px-3 py-1 text-xs font-semibold text-slate-700 dark:border-white/10 dark:bg-slate-950/20 dark:text-slate-200">{{.Duration}}</span>
+            <span class="inline-flex items-center rounded-full border border-slate-900/10 bg-white/60 px-3 py-1 text-xs font-semibold text-slate-700 dark:border-white/10 dark:bg-slate-950/20 dark:text-slate-200">{{.TurnCount}} turns</span>
+            <span class="inline-flex items-center rounded-full bg-teal-700/10 px-3 py-1 text-xs font-semibold text-teal-700 dark:bg-teal-500/10 dark:text-teal-200">Winner {{.Winner}}</span>
           </div>
         </a>
       {{end}}
     </div>
   {{else}}
-    <div class="empty muted">No matches yet.</div>
+    <div class="mt-4 text-sm text-slate-600 dark:text-slate-300">No matches yet.</div>
   {{end}}
 </section>
 {{end}}

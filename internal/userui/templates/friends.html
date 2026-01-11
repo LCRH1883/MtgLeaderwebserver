@@ -1,81 +1,79 @@
 {{define "content"}}
-<section class="tabs-bar">
-  <div class="tabs">
-    <a class="tab {{if eq .View "all"}}active{{end}}" href="/app/friends">All</a>
-    <a class="tab {{if eq .View "search"}}active{{end}}" href="/app/friends?view=search{{if .Query}}&q={{urlquery .Query}}{{end}}">Search</a>
-    <a class="tab {{if eq .View "incoming"}}active{{end}}" href="/app/friends?view=incoming">Incoming</a>
-    <a class="tab {{if eq .View "outgoing"}}active{{end}}" href="/app/friends?view=outgoing">Outgoing</a>
-    <a class="tab {{if eq .View "friends"}}active{{end}}" href="/app/friends?view=friends">Friends</a>
-  </div>
+<section class="flex flex-wrap gap-2">
+  <a class="inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold shadow-sm {{if eq .View "all"}}border-teal-700 bg-teal-700 text-white{{else}}border-slate-900/10 bg-white/60 text-slate-900 hover:border-teal-700 hover:text-teal-700 dark:border-white/10 dark:bg-slate-950/20 dark:text-slate-50 dark:hover:text-teal-200{{end}}" href="/app/friends">All</a>
+  <a class="inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold shadow-sm {{if eq .View "search"}}border-teal-700 bg-teal-700 text-white{{else}}border-slate-900/10 bg-white/60 text-slate-900 hover:border-teal-700 hover:text-teal-700 dark:border-white/10 dark:bg-slate-950/20 dark:text-slate-50 dark:hover:text-teal-200{{end}}" href="/app/friends?view=search{{if .Query}}&q={{urlquery .Query}}{{end}}">Search</a>
+  <a class="inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold shadow-sm {{if eq .View "incoming"}}border-teal-700 bg-teal-700 text-white{{else}}border-slate-900/10 bg-white/60 text-slate-900 hover:border-teal-700 hover:text-teal-700 dark:border-white/10 dark:bg-slate-950/20 dark:text-slate-50 dark:hover:text-teal-200{{end}}" href="/app/friends?view=incoming">Incoming</a>
+  <a class="inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold shadow-sm {{if eq .View "outgoing"}}border-teal-700 bg-teal-700 text-white{{else}}border-slate-900/10 bg-white/60 text-slate-900 hover:border-teal-700 hover:text-teal-700 dark:border-white/10 dark:bg-slate-950/20 dark:text-slate-50 dark:hover:text-teal-200{{end}}" href="/app/friends?view=outgoing">Outgoing</a>
+  <a class="inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold shadow-sm {{if eq .View "friends"}}border-teal-700 bg-teal-700 text-white{{else}}border-slate-900/10 bg-white/60 text-slate-900 hover:border-teal-700 hover:text-teal-700 dark:border-white/10 dark:bg-slate-950/20 dark:text-slate-50 dark:hover:text-teal-200{{end}}" href="/app/friends?view=friends">Friends</a>
 </section>
 
 {{if .Error}}
-  <div class="alert">{{.Error}}</div>
+  <div class="mt-6 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-900 dark:text-rose-100">{{.Error}}</div>
 {{end}}
 {{if .Notice}}
-  <div class="notice">{{.Notice}}</div>
+  <div class="mt-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-900 dark:text-emerald-100">{{.Notice}}</div>
 {{end}}
 
 {{if or (eq .View "all") (eq .View "search")}}
-<section class="hero stack">
-  <div>
-    <p class="eyebrow">Find friends</p>
-    <h1>Search players and grow your pod.</h1>
-    <p class="lead">Use usernames to send a friend request. Once accepted, you both appear in each other's friends list.</p>
+<section class="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
+  <div class="space-y-3">
+    <p class="text-xs font-semibold uppercase tracking-[0.25em] text-teal-700 dark:text-teal-300">Find friends</p>
+    <h1 class="font-['Space_Grotesk'] text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50">Search players and grow your pod.</h1>
+    <p class="text-sm leading-6 text-slate-600 dark:text-slate-300">Use usernames to send a friend request. Once accepted, you both appear in each other's friends list.</p>
   </div>
-  <form class="search-card" method="get" action="/app/friends">
+  <form class="rounded-3xl border border-slate-900/10 bg-white/70 p-6 shadow-sm backdrop-blur dark:border-white/10 dark:bg-slate-950/30" method="get" action="/app/friends">
     <input type="hidden" name="view" value="{{.View}}" />
-    <label class="label" for="q">Search by username</label>
-    <div class="search-row">
-      <input id="q" name="q" type="search" placeholder="e.g. lotus_mage" value="{{.Query}}" />
-      <button type="submit">Search</button>
+    <label class="text-sm font-semibold text-slate-700 dark:text-slate-200" for="q">Search by username</label>
+    <div class="mt-2 flex flex-col gap-3 sm:flex-row">
+      <input class="w-full rounded-xl border border-slate-300 bg-white/90 px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-200 dark:border-white/10 dark:bg-slate-950/30 dark:text-slate-50 dark:focus:ring-teal-500/30" id="q" name="q" type="search" placeholder="e.g. lotus_mage" value="{{.Query}}" />
+      <button class="inline-flex items-center justify-center rounded-xl bg-teal-700 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-300 dark:focus:ring-teal-500/40" type="submit">Search</button>
     </div>
-    <div class="hint">Minimum 3 characters.</div>
+    <div class="mt-2 text-xs text-slate-600 dark:text-slate-300">Minimum 3 characters.</div>
   </form>
 </section>
 
-<section class="panel">
-  <div class="panel-header">
-    <h2>Search results</h2>
-    {{if .Query}}<div class="muted">Results for "{{.Query}}"</div>{{end}}
+<section class="mt-8 rounded-3xl border border-slate-900/10 bg-white/70 p-6 shadow-sm backdrop-blur dark:border-white/10 dark:bg-slate-950/30">
+  <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+    <h2 class="font-['Space_Grotesk'] text-xl font-bold text-slate-900 dark:text-slate-50">Search results</h2>
+    {{if .Query}}<div class="text-sm text-slate-600 dark:text-slate-300">Results for "{{.Query}}"</div>{{end}}
   </div>
   {{if .Query}}
     {{if .Results}}
-      <div class="list">
+      <div class="mt-4 space-y-3">
         {{range .Results}}
-          <div class="list-row">
+          <div class="flex flex-col gap-3 rounded-2xl border border-slate-900/10 bg-white/60 p-4 shadow-sm dark:border-white/10 dark:bg-slate-950/20 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <div class="username">@{{.Username}}</div>
+              <div class="font-semibold text-slate-900 dark:text-slate-50">@{{.Username}}</div>
             </div>
-            <div class="actions">
+            <div class="flex flex-wrap gap-2">
               {{if .IsFriend}}
-                <span class="pill success">Friends</span>
+                <span class="inline-flex items-center rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-200">Friends</span>
               {{else if .IsIncoming}}
                 <form method="post" action="/app/friends/requests/accept">
                   <input type="hidden" name="id" value="{{.RequestID}}" />
                   <input type="hidden" name="q" value="{{$.Query}}" />
                   <input type="hidden" name="view" value="{{$.View}}" />
-                  <button type="submit">Accept</button>
+                  <button class="inline-flex items-center justify-center rounded-xl bg-teal-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-300 dark:focus:ring-teal-500/40" type="submit">Accept</button>
                 </form>
                 <form method="post" action="/app/friends/requests/decline">
                   <input type="hidden" name="id" value="{{.RequestID}}" />
                   <input type="hidden" name="q" value="{{$.Query}}" />
                   <input type="hidden" name="view" value="{{$.View}}" />
-                  <button class="ghost" type="submit">Decline</button>
+                  <button class="inline-flex items-center justify-center rounded-xl border border-slate-900/10 bg-white/60 px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:border-rose-600 hover:text-rose-700 dark:border-white/10 dark:bg-slate-950/20 dark:text-slate-50 dark:hover:text-rose-200" type="submit">Decline</button>
                 </form>
               {{else if .IsOutgoing}}
                 <form method="post" action="/app/friends/requests/cancel">
                   <input type="hidden" name="id" value="{{.RequestID}}" />
                   <input type="hidden" name="q" value="{{$.Query}}" />
                   <input type="hidden" name="view" value="{{$.View}}" />
-                  <button class="ghost" type="submit">Cancel request</button>
+                  <button class="inline-flex items-center justify-center rounded-xl border border-slate-900/10 bg-white/60 px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:border-rose-600 hover:text-rose-700 dark:border-white/10 dark:bg-slate-950/20 dark:text-slate-50 dark:hover:text-rose-200" type="submit">Cancel request</button>
                 </form>
               {{else}}
                 <form method="post" action="/app/friends/requests">
                   <input type="hidden" name="username" value="{{.Username}}" />
                   <input type="hidden" name="q" value="{{$.Query}}" />
                   <input type="hidden" name="view" value="{{$.View}}" />
-                  <button type="submit">Add friend</button>
+                  <button class="inline-flex items-center justify-center rounded-xl bg-teal-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-300 dark:focus:ring-teal-500/40" type="submit">Add friend</button>
                 </form>
               {{end}}
             </div>
@@ -83,78 +81,78 @@
         {{end}}
       </div>
     {{else}}
-      <div class="empty muted">No matches yet.</div>
+      <div class="mt-4 text-sm text-slate-600 dark:text-slate-300">No matches yet.</div>
     {{end}}
   {{else}}
-    <div class="empty muted">Type a username to start searching.</div>
+    <div class="mt-4 text-sm text-slate-600 dark:text-slate-300">Type a username to start searching.</div>
   {{end}}
 </section>
 {{end}}
 
 {{if or (eq .View "all") (eq .View "incoming") (eq .View "outgoing")}}
-<section class="{{if eq .View "all"}}grid{{else}}stack{{end}}">
+<section class="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
   {{if or (eq .View "all") (eq .View "incoming")}}
-  <div class="panel">
-    <div class="panel-header">
-      <h2>Incoming requests</h2>
-      <div class="muted">{{len .Incoming}} pending</div>
+  <div class="rounded-3xl border border-slate-900/10 bg-white/70 p-6 shadow-sm backdrop-blur dark:border-white/10 dark:bg-slate-950/30">
+    <div class="flex items-end justify-between gap-3">
+      <h2 class="font-['Space_Grotesk'] text-xl font-bold text-slate-900 dark:text-slate-50">Incoming requests</h2>
+      <div class="text-sm text-slate-600 dark:text-slate-300">{{len .Incoming}} pending</div>
     </div>
     {{if .Incoming}}
-      <div class="list">
+      <div class="mt-4 space-y-3">
         {{range .Incoming}}
-          <div class="list-row">
+          <div class="flex flex-col gap-3 rounded-2xl border border-slate-900/10 bg-white/60 p-4 shadow-sm dark:border-white/10 dark:bg-slate-950/20 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <div class="username">@{{.User.Username}}</div>
-              <div class="muted small">Requested {{.CreatedAt.Format "Jan 2, 2006"}}</div>
+              <div class="font-semibold text-slate-900 dark:text-slate-50">@{{.User.Username}}</div>
+              <div class="text-xs text-slate-600 dark:text-slate-300">Requested {{.CreatedAt.Format "Jan 2, 2006"}}</div>
             </div>
-            <div class="actions">
+            <div class="flex flex-wrap gap-2">
               <form method="post" action="/app/friends/requests/accept">
                 <input type="hidden" name="id" value="{{.ID}}" />
                 <input type="hidden" name="view" value="{{$.View}}" />
-                <button type="submit">Accept</button>
+                <button class="inline-flex items-center justify-center rounded-xl bg-teal-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-300 dark:focus:ring-teal-500/40" type="submit">Accept</button>
               </form>
               <form method="post" action="/app/friends/requests/decline">
                 <input type="hidden" name="id" value="{{.ID}}" />
                 <input type="hidden" name="view" value="{{$.View}}" />
-                <button class="ghost" type="submit">Decline</button>
+                <button class="inline-flex items-center justify-center rounded-xl border border-slate-900/10 bg-white/60 px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:border-rose-600 hover:text-rose-700 dark:border-white/10 dark:bg-slate-950/20 dark:text-slate-50 dark:hover:text-rose-200" type="submit">Decline</button>
               </form>
             </div>
           </div>
         {{end}}
       </div>
     {{else}}
-      <div class="empty muted">No incoming requests.</div>
+      <div class="mt-4 text-sm text-slate-600 dark:text-slate-300">No incoming requests.</div>
     {{end}}
   </div>
   {{end}}
 
   {{if or (eq .View "all") (eq .View "outgoing")}}
-  <div class="panel">
-    <div class="panel-header">
-      <h2>Outgoing requests</h2>
-      <div class="muted">{{len .Outgoing}} waiting</div>
+  <div class="rounded-3xl border border-slate-900/10 bg-white/70 p-6 shadow-sm backdrop-blur dark:border-white/10 dark:bg-slate-950/30">
+    <div class="flex items-end justify-between gap-3">
+      <h2 class="font-['Space_Grotesk'] text-xl font-bold text-slate-900 dark:text-slate-50">Outgoing requests</h2>
+      <div class="text-sm text-slate-600 dark:text-slate-300">{{len .Outgoing}} waiting</div>
     </div>
     {{if .Outgoing}}
-      <div class="list">
+      <div class="mt-4 space-y-3">
         {{range .Outgoing}}
-          <div class="list-row">
+          <div class="flex flex-col gap-3 rounded-2xl border border-slate-900/10 bg-white/60 p-4 shadow-sm dark:border-white/10 dark:bg-slate-950/20 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <div class="username">@{{.User.Username}}</div>
-              <div class="muted small">Sent {{.CreatedAt.Format "Jan 2, 2006"}}</div>
+              <div class="font-semibold text-slate-900 dark:text-slate-50">@{{.User.Username}}</div>
+              <div class="text-xs text-slate-600 dark:text-slate-300">Sent {{.CreatedAt.Format "Jan 2, 2006"}}</div>
             </div>
-            <div class="actions">
-              <span class="pill">Pending</span>
+            <div class="flex flex-wrap gap-2">
+              <span class="inline-flex items-center rounded-full border border-slate-900/10 bg-white/60 px-3 py-1 text-xs font-semibold text-slate-700 dark:border-white/10 dark:bg-slate-950/20 dark:text-slate-200">Pending</span>
               <form method="post" action="/app/friends/requests/cancel">
                 <input type="hidden" name="id" value="{{.ID}}" />
                 <input type="hidden" name="view" value="{{$.View}}" />
-                <button class="ghost" type="submit">Cancel</button>
+                <button class="inline-flex items-center justify-center rounded-xl border border-slate-900/10 bg-white/60 px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:border-rose-600 hover:text-rose-700 dark:border-white/10 dark:bg-slate-950/20 dark:text-slate-50 dark:hover:text-rose-200" type="submit">Cancel</button>
               </form>
             </div>
           </div>
         {{end}}
       </div>
     {{else}}
-      <div class="empty muted">No outgoing requests.</div>
+      <div class="mt-4 text-sm text-slate-600 dark:text-slate-300">No outgoing requests.</div>
     {{end}}
   </div>
   {{end}}
@@ -162,47 +160,47 @@
 {{end}}
 
 {{if or (eq .View "all") (eq .View "friends")}}
-<section class="panel">
-  <div class="panel-header">
-    <h2>Friends list</h2>
-    <div class="muted">{{len .Friends}} total</div>
+<section class="mt-8 rounded-3xl border border-slate-900/10 bg-white/70 p-6 shadow-sm backdrop-blur dark:border-white/10 dark:bg-slate-950/30">
+  <div class="flex items-end justify-between gap-3">
+    <h2 class="font-['Space_Grotesk'] text-xl font-bold text-slate-900 dark:text-slate-50">Friends list</h2>
+    <div class="text-sm text-slate-600 dark:text-slate-300">{{len .Friends}} total</div>
   </div>
   {{if .Friends}}
-    <div class="list">
+    <div class="mt-4 space-y-3">
       {{range .Friends}}
-        <div class="list-row friend-card-avatar">
-          <img class="friend-avatar" src="{{.AvatarURL}}" alt="Avatar for {{.DisplayName}}" loading="lazy" />
-          <div>
-            <div class="friend-name">{{.DisplayName}}</div>
-            <div class="username">@{{.Username}}</div>
+        <div class="flex items-center gap-4 rounded-2xl border border-slate-900/10 bg-white/60 p-4 shadow-sm dark:border-white/10 dark:bg-slate-950/20">
+          <img class="h-12 w-12 rounded-2xl border border-slate-900/10 object-cover dark:border-white/10" src="{{.AvatarURL}}" alt="Avatar for {{.DisplayName}}" loading="lazy" />
+          <div class="min-w-0">
+            <div class="truncate font-semibold text-slate-900 dark:text-slate-50">{{.DisplayName}}</div>
+            <div class="text-sm text-slate-600 dark:text-slate-300">@{{.Username}}</div>
           </div>
         </div>
       {{end}}
     </div>
   {{else}}
-    <div class="empty muted">No friends yet. Search for a username above.</div>
+    <div class="mt-4 text-sm text-slate-600 dark:text-slate-300">No friends yet. Search for a username above.</div>
   {{end}}
 </section>
 {{end}}
 
 {{if .Stats}}
-<section class="panel">
-  <div class="panel-header">
-    <h2>Friend stats</h2>
-    <div class="muted">Wins, losses, and co-losses</div>
+<section class="mt-8 rounded-3xl border border-slate-900/10 bg-white/70 p-6 shadow-sm backdrop-blur dark:border-white/10 dark:bg-slate-950/30">
+  <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+    <h2 class="font-['Space_Grotesk'] text-xl font-bold text-slate-900 dark:text-slate-50">Friend stats</h2>
+    <div class="text-sm text-slate-600 dark:text-slate-300">Wins, losses, and co-losses</div>
   </div>
-  <div class="list">
+  <div class="mt-4 space-y-3">
     {{range .Stats}}
-      <div class="list-row stats-row">
+      <div class="flex flex-col gap-3 rounded-2xl border border-slate-900/10 bg-white/60 p-4 shadow-sm dark:border-white/10 dark:bg-slate-950/20 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div class="friend-name">{{if .Friend.DisplayName}}{{.Friend.DisplayName}}{{else}}@{{.Friend.Username}}{{end}}</div>
-          <div class="username">@{{.Friend.Username}}</div>
+          <div class="font-semibold text-slate-900 dark:text-slate-50">{{if .Friend.DisplayName}}{{.Friend.DisplayName}}{{else}}@{{.Friend.Username}}{{end}}</div>
+          <div class="text-sm text-slate-600 dark:text-slate-300">@{{.Friend.Username}}</div>
         </div>
-        <div class="stats-inline">
-          <span class="pill">W {{.Wins}}</span>
-          <span class="pill">L {{.Losses}}</span>
-          <span class="pill">Co {{.CoLosses}}</span>
-          <span class="pill">Total {{.Total}}</span>
+        <div class="flex flex-wrap gap-2">
+          <span class="inline-flex items-center rounded-full border border-slate-900/10 bg-white/60 px-3 py-1 text-xs font-semibold text-slate-700 dark:border-white/10 dark:bg-slate-950/20 dark:text-slate-200">W {{.Wins}}</span>
+          <span class="inline-flex items-center rounded-full border border-slate-900/10 bg-white/60 px-3 py-1 text-xs font-semibold text-slate-700 dark:border-white/10 dark:bg-slate-950/20 dark:text-slate-200">L {{.Losses}}</span>
+          <span class="inline-flex items-center rounded-full border border-slate-900/10 bg-white/60 px-3 py-1 text-xs font-semibold text-slate-700 dark:border-white/10 dark:bg-slate-950/20 dark:text-slate-200">Co {{.CoLosses}}</span>
+          <span class="inline-flex items-center rounded-full border border-slate-900/10 bg-white/60 px-3 py-1 text-xs font-semibold text-slate-700 dark:border-white/10 dark:bg-slate-950/20 dark:text-slate-200">Total {{.Total}}</span>
         </div>
       </div>
     {{end}}

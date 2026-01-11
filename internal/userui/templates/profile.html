@@ -1,89 +1,97 @@
 {{define "content"}}
-<section class="stack">
-  <div>
-    <p class="eyebrow">Your profile</p>
-    <h1>Set your name and avatar.</h1>
-    <p class="lead">Crop a 96x96 avatar and pick the name shown on your profile.</p>
-  </div>
+<section class="space-y-3">
+  <p class="text-xs font-semibold uppercase tracking-[0.25em] text-teal-700 dark:text-teal-300">Your profile</p>
+  <h1 class="font-['Space_Grotesk'] text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50">Set your name and avatar.</h1>
+  <p class="text-sm leading-6 text-slate-600 dark:text-slate-300">Crop a 96x96 avatar and pick the name shown on your profile.</p>
 </section>
 
 {{if .Error}}
-  <div class="alert">{{.Error}}</div>
+  <div class="mt-6 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-900 dark:text-rose-100">{{.Error}}</div>
 {{end}}
 {{if .Notice}}
-  <div class="notice">{{.Notice}}</div>
+  <div class="mt-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-900 dark:text-emerald-100">{{.Notice}}</div>
 {{end}}
 
-<section class="profile-grid">
-  <div class="panel">
-    <div class="panel-header">
-      <h2>Profile details</h2>
-      <div class="muted">Visible to your friends</div>
+<section class="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
+  <div class="rounded-3xl border border-slate-900/10 bg-white/70 p-6 shadow-sm backdrop-blur dark:border-white/10 dark:bg-slate-950/30">
+    <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <h2 class="font-['Space_Grotesk'] text-xl font-bold text-slate-900 dark:text-slate-50">Profile details</h2>
+      <div class="text-sm text-slate-600 dark:text-slate-300">Visible to your friends</div>
     </div>
-    <div class="profile-card">
-      <div class="avatar-stack">
-        <img class="avatar-preview" src="{{.AvatarURL}}" alt="Profile avatar" />
-        <div class="muted small">Stored as 96x96 JPG</div>
+    <div class="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-[auto,1fr] sm:items-start">
+      <div class="space-y-2">
+        <img class="h-24 w-24 rounded-3xl border border-slate-900/10 object-cover shadow-sm dark:border-white/10" src="{{.AvatarURL}}" alt="Profile avatar" />
+        <div class="text-xs text-slate-600 dark:text-slate-300">Stored as 96x96 JPG</div>
       </div>
-      <div class="profile-meta">
-        <div class="profile-field">
-          <div class="label">Username</div>
-          <div class="profile-value">@{{.User.Username}}</div>
+      <div class="space-y-4">
+        <div class="rounded-2xl border border-slate-900/10 bg-white/60 p-4 shadow-sm dark:border-white/10 dark:bg-slate-950/20">
+          <div class="text-xs font-semibold text-slate-600 dark:text-slate-300">Username</div>
+          <div class="mt-1 font-semibold text-slate-900 dark:text-slate-50">@{{.User.Username}}</div>
         </div>
-        <div class="profile-field">
-          <div class="label">Email</div>
+        <div class="rounded-2xl border border-slate-900/10 bg-white/60 p-4 shadow-sm dark:border-white/10 dark:bg-slate-950/20">
+          <div class="text-xs font-semibold text-slate-600 dark:text-slate-300">Email</div>
           {{if .User.Email}}
-            <div class="profile-value">{{.User.Email}}</div>
+            <div class="mt-1 font-semibold text-slate-900 dark:text-slate-50">{{.User.Email}}</div>
           {{else}}
-            <div class="muted small">Not set</div>
+            <div class="mt-1 text-sm text-slate-600 dark:text-slate-300">Not set</div>
           {{end}}
         </div>
-        <form class="profile-form" method="post" action="/app/profile">
-          <label class="label" for="display_name">Display name</label>
-          <input id="display_name" name="display_name" type="text" maxlength="48" placeholder="Your name" value="{{.DisplayName}}" />
-          <div class="hint">Shown on your profile. Leave blank to hide.</div>
-          <button type="submit">Save name</button>
+        <form method="post" action="/app/profile" class="rounded-2xl border border-slate-900/10 bg-white/60 p-4 shadow-sm dark:border-white/10 dark:bg-slate-950/20">
+          <label class="text-sm font-semibold text-slate-700 dark:text-slate-200" for="display_name">Display name</label>
+          <input class="mt-2 w-full rounded-xl border border-slate-300 bg-white/90 px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-200 dark:border-white/10 dark:bg-slate-950/30 dark:text-slate-50 dark:focus:ring-teal-500/30" id="display_name" name="display_name" type="text" maxlength="48" placeholder="Your name" value="{{.DisplayName}}" />
+          <div class="mt-2 text-xs text-slate-600 dark:text-slate-300">Shown on your profile. Leave blank to hide.</div>
+          <button class="mt-4 inline-flex items-center justify-center rounded-xl bg-teal-700 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-300 dark:focus:ring-teal-500/40" type="submit">Save name</button>
         </form>
       </div>
     </div>
   </div>
 
-  <div class="panel">
-    <div class="panel-header">
-      <h2>Avatar cropper</h2>
-      <div class="muted">Drag and zoom</div>
+  <div class="rounded-3xl border border-slate-900/10 bg-white/70 p-6 shadow-sm backdrop-blur dark:border-white/10 dark:bg-slate-950/30">
+    <div class="flex items-end justify-between gap-3">
+      <h2 class="font-['Space_Grotesk'] text-xl font-bold text-slate-900 dark:text-slate-50">Avatar cropper</h2>
+      <div class="text-sm text-slate-600 dark:text-slate-300">Drag and zoom</div>
     </div>
-    <form id="avatar-form" class="avatar-form" method="post" action="/app/profile/avatar" enctype="multipart/form-data">
-      <label class="label" for="avatar-file">Choose image</label>
-      <input id="avatar-file" name="avatar" type="file" accept="image/*" />
-      <div class="cropper" id="cropper">
-        <canvas id="avatar-canvas" width="96" height="96"></canvas>
-        <div class="cropper-placeholder">Select a photo to begin</div>
+    <form id="avatar-form" method="post" action="/app/profile/avatar" enctype="multipart/form-data" class="mt-4 space-y-4">
+      <div class="space-y-1">
+        <label class="text-sm font-semibold text-slate-700 dark:text-slate-200" for="avatar-file">Choose image</label>
+        <input class="block w-full cursor-pointer rounded-xl border border-slate-300 bg-white/90 px-4 py-3 text-sm text-slate-900 shadow-sm file:mr-4 file:rounded-lg file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white hover:file:bg-slate-800 dark:border-white/10 dark:bg-slate-950/30 dark:text-slate-50 dark:file:bg-slate-200 dark:file:text-slate-900 dark:hover:file:bg-slate-100" id="avatar-file" name="avatar" type="file" accept="image/*" />
       </div>
-      <div class="crop-controls">
-        <label class="label" for="avatar-zoom">Zoom</label>
-        <input id="avatar-zoom" type="range" min="1" max="3" step="0.01" value="1" />
+
+      <div id="cropper" class="relative overflow-hidden rounded-3xl border border-slate-900/10 bg-white/60 shadow-sm dark:border-white/10 dark:bg-slate-950/20">
+        <div class="grid place-items-center p-6">
+          <canvas id="avatar-canvas" class="h-48 w-48 rounded-3xl border border-slate-900/10 bg-white shadow-sm dark:border-white/10 dark:bg-slate-950/20" width="96" height="96"></canvas>
+        </div>
+        <div id="cropper-placeholder" class="absolute inset-0 grid place-items-center text-sm font-semibold text-slate-600 dark:text-slate-300">Select a photo to begin</div>
       </div>
-      <div class="actions-row">
-        <button type="button" id="avatar-save">Save avatar</button>
-        <span class="muted small" id="avatar-status"></span>
+
+      <div class="space-y-1">
+        <label class="text-sm font-semibold text-slate-700 dark:text-slate-200" for="avatar-zoom">Zoom</label>
+        <input id="avatar-zoom" class="w-full" type="range" min="1" max="3" step="0.01" value="1" />
       </div>
-      <div class="hint">The server saves a lightweight 96x96 JPEG.</div>
-      <div class="alert" id="avatar-error" style="display:none;"></div>
+
+      <div class="flex flex-wrap items-center gap-3">
+        <button class="inline-flex items-center justify-center rounded-xl bg-teal-700 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-300 disabled:opacity-60 dark:focus:ring-teal-500/40" type="button" id="avatar-save">Save avatar</button>
+        <span class="text-xs text-slate-600 dark:text-slate-300" id="avatar-status"></span>
+      </div>
+
+      <div class="text-xs text-slate-600 dark:text-slate-300">The server saves a lightweight 96x96 JPEG.</div>
+      <div class="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-900 dark:text-rose-100" id="avatar-error" style="display:none;"></div>
     </form>
   </div>
 </section>
 
-<section class="panel danger-panel">
-  <div class="panel-header">
-    <h2>Delete account</h2>
-    <div class="muted">Permanent</div>
+<section class="mt-8 rounded-3xl border border-rose-500/20 bg-rose-500/5 p-6 shadow-sm">
+  <div class="flex items-end justify-between gap-3">
+    <h2 class="font-['Space_Grotesk'] text-xl font-bold text-slate-900">Delete account</h2>
+    <div class="text-sm text-slate-600">Permanent</div>
   </div>
-  <p class="muted">This permanently deletes your account and match history. This cannot be undone.</p>
-  <form class="delete-form" method="post" action="/app/profile/delete">
-    <label class="label" for="delete-confirm">Type DELETE to confirm</label>
-    <input id="delete-confirm" name="confirm" type="text" autocomplete="off" placeholder="DELETE" required />
-    <button type="submit" class="danger">Delete account</button>
+  <p class="mt-3 text-sm text-slate-700">This permanently deletes your account and match history. This cannot be undone.</p>
+  <form method="post" action="/app/profile/delete" class="mt-4 space-y-3">
+    <div class="space-y-1">
+      <label class="text-sm font-semibold text-slate-700" for="delete-confirm">Type DELETE to confirm</label>
+      <input class="w-full rounded-xl border border-slate-300 bg-white/90 px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-200" id="delete-confirm" name="confirm" type="text" autocomplete="off" placeholder="DELETE" required />
+    </div>
+    <button class="inline-flex items-center justify-center rounded-xl bg-rose-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-300" type="submit">Delete account</button>
   </form>
 </section>
 
@@ -96,6 +104,7 @@
   const errorEl = document.getElementById("avatar-error");
   const statusEl = document.getElementById("avatar-status");
   const cropper = document.getElementById("cropper");
+  const placeholder = document.getElementById("cropper-placeholder");
 
   if (!fileInput || !canvas || !zoom || !saveBtn) {
     return;
@@ -166,7 +175,9 @@
     const file = fileInput.files && fileInput.files[0];
     if (!file) {
       img = null;
-      cropper.classList.remove("ready");
+      if (placeholder) {
+        placeholder.classList.remove("hidden");
+      }
       drawFrame();
       return;
     }
@@ -175,7 +186,9 @@
       const image = new Image();
       image.onload = () => {
         img = image;
-        cropper.classList.add("ready");
+        if (placeholder) {
+          placeholder.classList.add("hidden");
+        }
         resetView();
       };
       image.onerror = () => setError("That file could not be loaded.");

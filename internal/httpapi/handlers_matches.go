@@ -1,6 +1,9 @@
 package httpapi
 
 import (
+	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -34,15 +37,19 @@ type createMatchResponse struct {
 }
 
 type matchPlayerRequest struct {
-	SeatIndex            int    `json:"seat_index"`
-	UserID               string `json:"user_id,omitempty"`
-	GuestName            string `json:"guest_name,omitempty"`
-	DisplayName          string `json:"display_name,omitempty"`
-	Place                int    `json:"place"`
-	EliminatedTurnNumber *int   `json:"eliminated_turn_number,omitempty"`
-	EliminatedDuringSeat *int   `json:"eliminated_during_seat_index,omitempty"`
-	TotalTurnTimeMs      *int64 `json:"total_turn_time_ms,omitempty"`
-	TurnsTaken           *int   `json:"turns_taken,omitempty"`
+	SeatIndex            int     `json:"seat_index"`
+	Seat                 *int    `json:"seat,omitempty"` // client-only
+	UserID               *string `json:"user_id,omitempty"`
+	GuestName            *string `json:"guest_name,omitempty"`
+	DisplayName          *string `json:"display_name,omitempty"`
+	ProfileName          *string `json:"profile_name,omitempty"` // client-only
+	Life                 *int    `json:"life,omitempty"`         // client-only
+	Counters             any     `json:"counters,omitempty"`     // client-only
+	Place                int     `json:"place"`
+	EliminatedTurnNumber *int    `json:"eliminated_turn_number,omitempty"`
+	EliminatedDuringSeat *int    `json:"eliminated_during_seat_index,omitempty"`
+	TotalTurnTimeMs      *int64  `json:"total_turn_time_ms,omitempty"`
+	TurnsTaken           *int    `json:"turns_taken,omitempty"`
 }
 
 func (a *api) handleMatchesCreate(w http.ResponseWriter, r *http.Request) {
@@ -53,8 +60,11 @@ func (a *api) handleMatchesCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req createMatchRequest
-	if err := decodeJSON(w, r, &req); err != nil {
-		WriteError(w, http.StatusBadRequest, "bad_json", "invalid json")
+	if err := decodeJSONAllowUnknownFields(w, r, &req); err != nil {
+		if a.logger != nil {
+			a.logger.Warn("matches: decode json failed", "err", err)
+		}
+		WriteError(w, http.StatusBadRequest, "bad_json", jsonDecodeErrorMessage(err))
 		return
 	}
 
@@ -79,7 +89,7 @@ func (a *api) handleMatchesCreate(w http.ResponseWriter, r *http.Request) {
 
 	var playedAt *time.Time
 	if strings.TrimSpace(req.PlayedAt) != "" {
-		t, err := time.Parse(time.RFC3339, req.PlayedAt)
+		t, err := time.Parse(time.RFC3339Nano, req.PlayedAt)
 		if err != nil {
 			WriteDomainError(w, domain.NewValidationError(map[string]string{"played_at": "must be RFC3339 timestamp"}))
 			return
@@ -89,7 +99,7 @@ func (a *api) handleMatchesCreate(w http.ResponseWriter, r *http.Request) {
 
 	var startedAt *time.Time
 	if strings.TrimSpace(req.StartedAt) != "" {
-		t, err := time.Parse(time.RFC3339, req.StartedAt)
+		t, err := time.Parse(time.RFC3339Nano, req.StartedAt)
 		if err != nil {
 			WriteDomainError(w, domain.NewValidationError(map[string]string{"started_at": "must be RFC3339 timestamp"}))
 			return
@@ -99,7 +109,7 @@ func (a *api) handleMatchesCreate(w http.ResponseWriter, r *http.Request) {
 
 	var endedAt *time.Time
 	if strings.TrimSpace(req.EndedAt) != "" {
-		t, err := time.Parse(time.RFC3339, req.EndedAt)
+		t, err := time.Parse(time.RFC3339Nano, req.EndedAt)
 		if err != nil {
 			WriteDomainError(w, domain.NewValidationError(map[string]string{"ended_at": "must be RFC3339 timestamp"}))
 			return
@@ -125,11 +135,15 @@ func (a *api) handleMatchesCreate(w http.ResponseWriter, r *http.Request) {
 
 	participants := make([]domain.MatchParticipantInput, 0, len(req.Players))
 	for _, p := range req.Players {
+		userID := normalizeOptionalString(derefString(p.UserID))
+		guestName := normalizeOptionalString(derefString(p.GuestName))
+		displayName := strings.TrimSpace(derefString(p.DisplayName))
+
 		participants = append(participants, domain.MatchParticipantInput{
 			SeatIndex:        p.SeatIndex,
-			UserID:           strings.TrimSpace(p.UserID),
-			GuestName:        strings.TrimSpace(p.GuestName),
-			DisplayName:      strings.TrimSpace(p.DisplayName),
+			UserID:           userID,
+			GuestName:        guestName,
+			DisplayName:      displayName,
 			Place:            p.Place,
 			EliminatedTurn:   p.EliminatedTurnNumber,
 			EliminatedDuring: p.EliminatedDuringSeat,
@@ -153,6 +167,12 @@ func (a *api) handleMatchesCreate(w http.ResponseWriter, r *http.Request) {
 		Results:              req.Results,
 	})
 	if err != nil {
+		var ve *domain.ValidationError
+		if errors.As(err, &ve) {
+			a.logger.Warn("matches: create validation failed", "fields", ve.Fields, "err", err)
+		} else {
+			a.logger.Error("matches: create failed", "err", err)
+		}
 		WriteDomainError(w, err)
 		return
 	}
@@ -218,4 +238,59 @@ func (a *api) handleMatchesGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	WriteJSON(w, http.StatusOK, match)
+}
+
+func jsonDecodeErrorMessage(err error) string {
+	if err == nil {
+		return "invalid json"
+	}
+	if errors.Is(err, io.EOF) {
+		return "empty request body"
+	}
+	if errors.Is(err, io.ErrUnexpectedEOF) {
+		return "truncated json body"
+	}
+
+	// json.Decoder.DisallowUnknownFields() returns plain errors with this prefix.
+	msg := err.Error()
+	if strings.HasPrefix(msg, "json: unknown field ") {
+		return msg
+	}
+	if strings.HasPrefix(msg, "multiple json values") {
+		return msg
+	}
+
+	var se *json.SyntaxError
+	if errors.As(err, &se) {
+		return "invalid json syntax"
+	}
+	var ute *json.UnmarshalTypeError
+	if errors.As(err, &ute) {
+		if ute.Field != "" {
+			return "invalid json type for field: " + ute.Field
+		}
+		return "invalid json type"
+	}
+
+	return "invalid json"
+}
+
+func derefString(v *string) string {
+	if v == nil {
+		return ""
+	}
+	return *v
+}
+
+func normalizeOptionalString(v string) string {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return ""
+	}
+	switch strings.ToLower(v) {
+	case "null", "undefined":
+		return ""
+	default:
+		return v
+	}
 }

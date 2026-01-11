@@ -70,6 +70,7 @@ func NewRouter(opts RouterOpts) http.Handler {
 	publicMux.HandleFunc("GET /", api.handleHome)
 	publicMux.HandleFunc("GET /privacy", api.handlePrivacyWeb)
 	publicMux.HandleFunc("GET /privacy/android", api.handlePrivacyAndroid)
+	publicMux.HandleFunc("GET /privacy/apple", api.handlePrivacyApple)
 	publicMux.HandleFunc("GET /wiki", api.handleWikiDeleteAccount)
 	publicMux.HandleFunc("GET /wiki/", api.handleWikiDeleteAccount)
 	publicMux.HandleFunc("GET /wiki/delete-account", api.handleWikiDeleteAccount)

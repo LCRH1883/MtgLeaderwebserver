@@ -49,12 +49,12 @@ func (s *stubNotificationUsersStore) GetUserByID(ctx context.Context, id string)
 }
 
 type stubPushSender struct {
-	sendFunc func(context.Context, string, map[string]string) error
+	sendFunc func(context.Context, string, notifications.Message) error
 }
 
-func (s *stubPushSender) Send(ctx context.Context, token string, data map[string]string) error {
+func (s *stubPushSender) Send(ctx context.Context, token string, msg notifications.Message) error {
 	if s.sendFunc != nil {
-		return s.sendFunc(ctx, token, data)
+		return s.sendFunc(ctx, token, msg)
 	}
 	return nil
 }
@@ -70,6 +70,9 @@ func TestNotificationServiceRegisterTokenValidation(t *testing.T) {
 	if _, err := svc.RegisterToken(context.Background(), "user-1", "token", ""); err == nil {
 		t.Fatalf("expected validation error for empty platform")
 	}
+	if _, err := svc.RegisterToken(context.Background(), "user-1", "token", "web"); err == nil {
+		t.Fatalf("expected validation error for invalid platform")
+	}
 }
 
 func TestNotificationServiceNotifyFriendRequestDeletesInvalidToken(t *testing.T) {
@@ -79,7 +82,7 @@ func TestNotificationServiceNotifyFriendRequestDeletesInvalidToken(t *testing.T)
 			if userID != "user-2" {
 				t.Fatalf("unexpected user id: %s", userID)
 			}
-			return []domain.NotificationToken{{Token: "token-1"}}, nil
+			return []domain.NotificationToken{{Token: "token-1", Platform: "ios"}}, nil
 		},
 		deleteFunc: func(_ context.Context, userID, token string) error {
 			if userID != "user-2" || token != "token-1" {
@@ -100,9 +103,12 @@ func TestNotificationServiceNotifyFriendRequestDeletesInvalidToken(t *testing.T)
 	}
 
 	sender := &stubPushSender{
-		sendFunc: func(_ context.Context, token string, data map[string]string) error {
+		sendFunc: func(_ context.Context, token string, msg notifications.Message) error {
 			if token != "token-1" {
 				t.Fatalf("unexpected token: %s", token)
+			}
+			if msg.Notification == nil || msg.Notification.Title == "" || msg.Notification.Body == "" {
+				t.Fatalf("expected notification title/body to be set")
 			}
 			return notifications.ErrInvalidToken
 		},

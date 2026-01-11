@@ -13,8 +13,9 @@ type errorEnvelope struct {
 }
 
 type apiError struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
+	Code    string            `json:"code"`
+	Message string            `json:"message"`
+	Fields  map[string]string `json:"fields,omitempty"`
 }
 
 func WriteError(w http.ResponseWriter, status int, code, message string) {
@@ -30,7 +31,12 @@ func WriteJSON(w http.ResponseWriter, status int, v any) {
 func WriteDomainError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, domain.ErrValidation):
-		WriteError(w, http.StatusBadRequest, "validation_error", "invalid request")
+		apiErr := apiError{Code: "validation_error", Message: "invalid request"}
+		var ve *domain.ValidationError
+		if errors.As(err, &ve) && len(ve.Fields) > 0 {
+			apiErr.Fields = ve.Fields
+		}
+		WriteJSON(w, http.StatusBadRequest, errorEnvelope{Error: apiErr})
 	case errors.Is(err, domain.ErrUsernameTaken):
 		WriteError(w, http.StatusConflict, "username_taken", "username already taken")
 	case errors.Is(err, domain.ErrEmailTaken):
