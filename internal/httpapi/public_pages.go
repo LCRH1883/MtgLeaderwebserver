@@ -79,7 +79,7 @@ const publicLayout = `<!doctype html>
           <img class="h-11 w-11 rounded-2xl object-cover shadow-sm ring-1 ring-white/10" src="/img/wizard_icon.png" width="44" height="44" alt="MTG Leader" />
           <span class="leading-tight">
             <span class="block font-['Space_Grotesk'] text-lg font-bold text-slate-50">MTG Leader</span>
-            <span class="block text-sm text-slate-300">Magic: The Gathering playgroup toolkit</span>
+            <span class="block text-sm text-slate-300">Magic: The Gathering playgroup</span>
           </span>
         </a>
         <nav class="flex flex-wrap items-center gap-3">
@@ -92,7 +92,7 @@ const publicLayout = `<!doctype html>
       {{.Body}}
       <footer class="mt-14 border-t border-white/10 pt-6 text-sm text-slate-300">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>Copyright 2025 MTG Leader. Built for Magic: The Gathering communities.</div>
+          <div>Copyright 2025 MTG Leader. Built for Magic: The Gathering Table Top Games.</div>
           <div class="flex flex-wrap gap-x-4 gap-y-2">
             <a class="font-semibold text-rose-200 hover:text-rose-100" href="/privacy">Web privacy</a>
             <a class="font-semibold text-rose-200 hover:text-rose-100" href="/privacy/android">Android privacy</a>
