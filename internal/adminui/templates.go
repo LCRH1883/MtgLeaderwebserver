@@ -57,6 +57,7 @@ type userRow struct {
 	ID        string
 	Email     string
 	Username  string
+	Type      string
 	Status    string
 	JoinedAt  string
 	LastLogin string

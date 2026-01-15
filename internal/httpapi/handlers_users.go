@@ -1,11 +1,15 @@
 package httpapi
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
+	"MtgLeaderwebserver/internal/auth"
 	"MtgLeaderwebserver/internal/domain"
 )
 
@@ -70,6 +74,35 @@ func (a *api) handleUsersMe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeUser(w, http.StatusOK, u, stats)
+}
+
+func (a *api) handleUsersMeDelete(w http.ResponseWriter, r *http.Request) {
+	u, ok := CurrentUser(r.Context())
+	if !ok {
+		WriteDomainError(w, domain.ErrUnauthorized)
+		return
+	}
+	if a.authSvc == nil {
+		WriteError(w, http.StatusServiceUnavailable, "auth_unavailable", "auth unavailable")
+		return
+	}
+
+	avatarPath := strings.TrimSpace(u.AvatarPath)
+	if err := a.authSvc.DeleteUser(r.Context(), u.ID); err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			auth.ClearSessionCookie(w, a.cookieSecure)
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		WriteDomainError(w, err)
+		return
+	}
+
+	auth.ClearSessionCookie(w, a.cookieSecure)
+	if avatarPath != "" {
+		_ = os.Remove(filepath.Join(a.avatarDir, avatarPath))
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func userETag(u domain.User) string {

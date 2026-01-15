@@ -207,6 +207,7 @@ func main() {
 			CookieSecure: cfg.CookieSecure(),
 			SessionTTL:   cfg.SessionTTL,
 			AdminEmails:  cfg.AdminEmails,
+			GlobalAdmin:  cfg.AdminBootstrapEmail,
 			PublicURL:    cfg.PublicURL,
 		})
 		root.Handle("/admin", adminRouter)

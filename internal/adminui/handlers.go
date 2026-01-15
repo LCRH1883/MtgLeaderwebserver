@@ -89,6 +89,7 @@ func (a *app) handleUsersList(w http.ResponseWriter, r *http.Request) {
 			ID:        u.ID,
 			Email:     u.Email,
 			Username:  u.Username,
+			Type:      userType(u.Email, a.adminEmails, a.globalAdmin),
 			Status:    string(u.Status),
 			JoinedAt:  u.CreatedAt.Format("Jan 2, 2006"),
 			LastLogin: lastLogin,

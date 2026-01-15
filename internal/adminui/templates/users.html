@@ -14,6 +14,7 @@
         <th>ID</th>
         <th>Email</th>
         <th>Username</th>
+        <th>Type</th>
         <th>Status</th>
         <th>Joined</th>
         <th>Last Login</th>
@@ -27,6 +28,7 @@
         <td class="mono">{{.ID}}</td>
         <td>{{if .Email}}{{.Email}}{{else}}<span class="muted">—</span>{{end}}</td>
         <td>{{.Username}}</td>
+        <td><span class="pill">{{.Type}}</span></td>
         <td>{{.Status}}</td>
         <td>{{.JoinedAt}}</td>
         <td>{{.LastLogin}}</td>

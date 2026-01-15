@@ -24,6 +24,7 @@ type Opts struct {
 	CookieSecure bool
 	SessionTTL   time.Duration
 	AdminEmails  []string
+	GlobalAdmin  string
 	PublicURL    *url.URL
 }
 
@@ -55,6 +56,7 @@ func New(opts Opts) http.Handler {
 		cookieSecure: opts.CookieSecure,
 		sessionTTL:   opts.SessionTTL,
 		adminEmails:  adminSet,
+		globalAdmin:  strings.TrimSpace(strings.ToLower(opts.GlobalAdmin)),
 		publicURL:    opts.PublicURL,
 	}
 
@@ -106,6 +108,7 @@ type app struct {
 	cookieSecure bool
 	sessionTTL   time.Duration
 	adminEmails  map[string]bool
+	globalAdmin  string
 	publicURL    *url.URL
 
 	templates *templates
